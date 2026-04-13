@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Jam Skladun</title>
+  </head>
+  <body>
+    <div id="app" class="app-shell">
+      <section class="stage-column" aria-label="Game area">
+        <header class="game-heading">
+          <h1>Jam Skladun</h1>
+        </header>
+        <main id="game-root" class="game-root" aria-label="Game scene"></main>
+      </section>
+      <aside class="side-panel" aria-label="Element panel">
+        <section class="panel-section play-row">
+          <button id="play-button" class="play-button" type="button" aria-label="Play">▶</button>
+          <button id="stop-button" type="button">Stop</button>
+          <button id="reset-button" type="button">Reset</button>
+        </section>
+
+        <section class="panel-section">
+          <p id="status-text">Preparing level</p>
+        </section>
+
+        <section class="panel-section panel-tabs" role="tablist" aria-label="Panel view">
+          <button class="panel-tab is-active" type="button" data-panel-tab="add">Add</button>
+          <button class="panel-tab" type="button" data-panel-tab="elements">Elements</button>
+        </section>
+
+        <div class="panel-view" data-panel-view="add">
+          <section class="panel-section">
+            <p class="panel-label">Add element</p>
+            <div class="element-tabs" role="tablist" aria-label="Element type">
+              <button class="element-tab is-active" type="button" data-element-type-tab="shape">
+                <svg viewBox="0 0 48 34" aria-hidden="true">
+                  <circle cx="12" cy="17" r="7"></circle>
+                  <rect x="23" y="10" width="14" height="14"></rect>
+                  <path d="M24 30 L32 18 L40 30 Z"></path>
+                </svg>
+                <span>Shape</span>
+              </button>
+              <button class="element-tab" type="button" data-element-type-tab="joint">
+                <svg viewBox="0 0 48 34" aria-hidden="true">
+                  <line x1="14" y1="17" x2="34" y2="17"></line>
+                  <circle cx="12" cy="17" r="7"></circle>
+                  <circle cx="36" cy="17" r="7"></circle>
+                </svg>
+                <span>Joint</span>
+              </button>
+              <button class="element-tab" type="button" data-element-type-tab="force">
+                <svg viewBox="0 0 48 34" aria-hidden="true">
+                  <line x1="8" y1="25" x2="34" y2="9"></line>
+                  <path d="M32 9 L42 7 L37 17 Z"></path>
+                </svg>
+                <span>Force</span>
+              </button>
+              <button class="element-tab" type="button" data-element-type-tab="gravity">
+                <svg viewBox="0 0 48 34" aria-hidden="true">
+                  <line x1="24" y1="5" x2="24" y2="24"></line>
+                  <path d="M16 18 L24 27 L32 18 Z"></path>
+                  <line x1="12" y1="30" x2="36" y2="30"></line>
+                </svg>
+                <span>Gravity</span>
+              </button>
+            </div>
+            <select id="element-type" hidden aria-hidden="true" tabindex="-1">
+              <option value="shape">Shape</option>
+              <option value="joint">Joint</option>
+              <option value="force">Force</option>
+              <option value="gravity">Gravity</option>
+            </select>
+            <select id="shape-select" hidden aria-hidden="true" tabindex="-1">
+              <option value="">New element</option>
+            </select>
+            <p id="element-note" class="panel-note"></p>
+          </section>
+
+          <section class="panel-section" data-element-settings="shape">
+            <p class="panel-label">Shape type</p>
+            <div class="shape-type-buttons" role="toolbar" aria-label="Shape type">
+              <button class="shape-type-button" type="button" data-shape-type-button="circle" aria-label="Circle">
+                <svg viewBox="0 0 40 40" aria-hidden="true">
+                  <circle cx="20" cy="20" r="11"></circle>
+                </svg>
+              </button>
+              <button class="shape-type-button" type="button" data-shape-type-button="rectangle" aria-label="Square">
+                <svg viewBox="0 0 40 40" aria-hidden="true">
+                  <rect x="10" y="10" width="20" height="20"></rect>
+                </svg>
+              </button>
+              <button class="shape-type-button" type="button" data-shape-type-button="triangle" aria-label="Triangle">
+                <svg viewBox="0 0 40 40" aria-hidden="true">
+                  <path d="M20 8 L32 30 H8 Z"></path>
+                </svg>
+              </button>
+              <button class="shape-type-button clear-shape-button" type="button" data-shape-type-clear aria-label="Clear shape preview">
+                <svg viewBox="0 0 40 40" aria-hidden="true">
+                  <line x1="12" y1="12" x2="28" y2="28"></line>
+                  <line x1="28" y1="12" x2="12" y2="28"></line>
+                </svg>
+              </button>
+            </div>
+            <select id="shape-type" hidden aria-hidden="true" tabindex="-1">
+              <option value=""></option>
+              <option value="circle">Circle</option>
+              <option value="rectangle">Square</option>
+              <option value="triangle">Triangle</option>
+            </select>
+          </section>
+
+          <section class="panel-section two-columns" data-element-settings="shape">
+            <label>
+              X
+              <input id="shape-x" type="number" min="-100000" max="100000" step="1" value="160" />
+            </label>
+            <label>
+              Y
+              <input id="shape-y" type="number" min="-100000" max="100000" step="1" value="120" />
+            </label>
+          </section>
+
+          <section class="panel-section two-columns" data-element-settings="shape">
+            <label>
+              Size
+              <input id="shape-size" type="number" min="5" max="500" step="1" value="40" />
+            </label>
+            <label>
+              Mass
+              <input id="shape-mass" type="number" min="1" max="1000" step="1" value="10" />
+            </label>
+          </section>
+
+          <section class="panel-section" data-element-settings="joint" hidden>
+            <label for="joint-first-shape">First shape</label>
+            <select id="joint-first-shape"></select>
+            <label for="joint-second-shape">Second shape</label>
+            <select id="joint-second-shape"></select>
+          </section>
+
+          <section class="panel-section two-columns" data-element-settings="joint" hidden>
+            <label>
+              Strength
+              <input id="joint-strength" type="number" min="0.01" max="1" step="0.01" value="0.2" />
+            </label>
+            <label>
+              Distance
+              <input id="joint-distance" type="number" min="0" max="2000" step="1" value="120" />
+            </label>
+          </section>
+
+          <section class="panel-section" data-element-settings="force" hidden>
+            <label for="force-shape">Target shape</label>
+            <select id="force-shape"></select>
+          </section>
+
+          <section class="panel-section two-columns" data-element-settings="force" hidden>
+            <label>
+              Strength
+              <input id="force-strength" type="number" min="0" max="1000" step="1" value="10" />
+            </label>
+            <label>
+              Direction X
+              <input id="force-direction-x" type="number" min="-10" max="10" step="1" value="1" />
+            </label>
+          </section>
+
+          <section class="panel-section two-columns" data-element-settings="force" hidden>
+            <label>
+              Direction Y
+              <input id="force-direction-y" type="number" min="-10" max="10" step="1" value="0" />
+            </label>
+            <label>
+              Start
+              <input id="force-start" type="number" min="0" max="9999" step="0.1" value="0" />
+            </label>
+          </section>
+
+          <section class="panel-section" data-element-settings="force" hidden>
+            <label>
+              End
+              <input id="force-end" type="number" min="0" max="9999" step="0.1" placeholder="Always" />
+            </label>
+          </section>
+
+          <section class="panel-section two-columns" data-element-settings="gravity" hidden>
+            <label>
+              Gravity X
+              <input id="gravity-x" type="number" min="-10" max="10" step="1" value="0" />
+            </label>
+            <label>
+              Gravity Y
+              <input id="gravity-y" type="number" min="-10" max="10" step="1" value="0" />
+            </label>
+          </section>
+
+          <section class="panel-section actions">
+            <button id="add-shape" type="button">+</button>
+            <button id="update-shape" type="button">Update</button>
+            <button id="delete-shape" type="button">Delete</button>
+          </section>
+        </div>
+
+        <div class="panel-view" data-panel-view="elements" hidden>
+          <section class="panel-section">
+            <p class="panel-label">Added elements</p>
+            <div id="element-list" class="element-list"></div>
+          </section>
+        </div>
+
+        <section class="panel-section">
+          <p id="score-text">Score: 0</p>
+          <p id="timer-text">Time: 0.0</p>
+          <p id="stats-text">No stats yet</p>
+        </section>
+      </aside>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
