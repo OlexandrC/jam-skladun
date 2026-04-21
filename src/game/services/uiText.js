@@ -11,7 +11,7 @@ export function getDraftErrorText(draftElement) {
   }
 
   if (draftElement.kind === ELEMENT_TYPES.joint) {
-    return 'Select two different shapes';
+    return 'Select two different shapes and valid time';
   }
 
   if (draftElement.kind === ELEMENT_TYPES.force) {

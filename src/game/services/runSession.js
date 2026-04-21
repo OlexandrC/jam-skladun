@@ -6,7 +6,10 @@ import {
   getShapeFromBodyRecord,
   isBodyOutsideWorld,
   isForceActive,
+  isTimeWindowActive,
 } from './runPhysics.js';
+
+const MatterBody = Phaser.Physics.Matter.Matter.Body;
 
 export class RunSession {
   constructor(matter) {
@@ -19,7 +22,8 @@ export class RunSession {
     this.addLevelBodies(level);
     this.addShapeBodies(playerShapes, 'player', false);
     this.baseBodyRecords = this.runBodies.filter((record) => record.kind === 'base');
-    this.createConstraints(playerJoints);
+    this.setJointRecords(playerJoints);
+    this.updateActiveConstraints(0);
   }
 
   clear() {
@@ -30,8 +34,9 @@ export class RunSession {
 
   update(elapsedSeconds, playerForces) {
     this.clearBodiesOutsideWorld();
-    this.clearInactiveConstraints();
+    this.updateActiveConstraints(elapsedSeconds);
     this.applyActiveForces(playerForces, elapsedSeconds);
+    this.applyPlayerShapeLocks();
   }
 
   getBodyRecordByName(name) {
@@ -75,33 +80,50 @@ export class RunSession {
     });
   }
 
-  createConstraints(playerJoints) {
-    playerJoints.forEach((joint) => {
-      this.createConstraint(joint);
+  setJointRecords(playerJoints) {
+    this.runJointRecords = playerJoints.map((joint) => {
+      return { joint, constraint: null };
     });
   }
 
-  createConstraint(joint) {
-    const firstRecord = this.getBodyRecordByName(joint.firstShapeName);
-    const secondRecord = this.getBodyRecordByName(joint.secondShapeName);
+  updateActiveConstraints(elapsedSeconds) {
+    this.runJointRecords.forEach((record) => {
+      this.updateConstraintRecord(record, elapsedSeconds);
+    });
+  }
 
-    if (!firstRecord || !secondRecord) {
+  updateConstraintRecord(record, elapsedSeconds) {
+    if (this.shouldConstraintBeActive(record, elapsedSeconds)) {
+      this.addConstraintRecord(record);
       return;
     }
 
-    this.addConstraint(joint, firstRecord.body, secondRecord.body);
+    this.removeConstraintRecord(record);
   }
 
-  addConstraint(joint, firstBody, secondBody) {
-    const constraint = this.matter.add.constraint(
+  shouldConstraintBeActive(record, elapsedSeconds) {
+    return isTimeWindowActive(record.joint, elapsedSeconds)
+      && Boolean(this.getJointBodyPair(record.joint));
+  }
+
+  addConstraintRecord(record) {
+    const bodyPair = this.getJointBodyPair(record.joint);
+
+    if (record.constraint || !bodyPair) {
+      return;
+    }
+
+    record.constraint = this.makeConstraint(record.joint, bodyPair.first, bodyPair.second);
+  }
+
+  makeConstraint(joint, firstBody, secondBody) {
+    return this.matter.add.constraint(
       firstBody,
       secondBody,
       joint.distance,
       joint.strength,
       { label: joint.name },
     );
-
-    this.runConstraints.push({ constraint, joint });
   }
 
   applyActiveForces(playerForces, elapsedSeconds) {
@@ -128,6 +150,59 @@ export class RunSession {
     );
   }
 
+  applyPlayerShapeLocks() {
+    this.runBodies.forEach((record) => {
+      if (!this.shouldApplyShapeLocks(record)) {
+        return;
+      }
+
+      this.applyShapeLocks(record);
+    });
+  }
+
+  shouldApplyShapeLocks(record) {
+    return record.active
+      && record.kind === 'player'
+      && Boolean(record.shape.fixedX || record.shape.fixedY || record.shape.fixedAngle);
+  }
+
+  applyShapeLocks(record) {
+    this.applyPositionLocks(record);
+    this.applyAngleLock(record);
+  }
+
+  applyPositionLocks(record) {
+    if (!record.shape.fixedX && !record.shape.fixedY) {
+      return;
+    }
+
+    MatterBody.setPosition(record.body, this.getLockedPosition(record));
+    MatterBody.setVelocity(record.body, this.getLockedVelocity(record));
+  }
+
+  getLockedPosition(record) {
+    return {
+      x: record.shape.fixedX ? record.shape.x : record.body.position.x,
+      y: record.shape.fixedY ? record.shape.y : record.body.position.y,
+    };
+  }
+
+  getLockedVelocity(record) {
+    return {
+      x: record.shape.fixedX ? 0 : record.body.velocity.x,
+      y: record.shape.fixedY ? 0 : record.body.velocity.y,
+    };
+  }
+
+  applyAngleLock(record) {
+    if (!record.shape.fixedAngle) {
+      return;
+    }
+
+    MatterBody.setAngle(record.body, record.shape.angle ?? 0);
+    MatterBody.setAngularVelocity(record.body, 0);
+  }
+
   clearBodiesOutsideWorld() {
     this.runBodies.forEach((record) => {
       if (!record.active || !isBodyOutsideWorld(record.body)) {
@@ -139,31 +214,33 @@ export class RunSession {
     });
   }
 
-  clearInactiveConstraints() {
-    this.runConstraints = this.runConstraints.filter((record) => {
-      if (this.isConstraintActive(record.constraint)) {
-        return true;
-      }
+  getJointBodyPair(joint) {
+    const firstRecord = this.getBodyRecordByName(joint.firstShapeName);
+    const secondRecord = this.getBodyRecordByName(joint.secondShapeName);
 
-      this.matter.world.remove(record.constraint);
-      return false;
-    });
-  }
+    if (!firstRecord?.active || !secondRecord?.active) {
+      return null;
+    }
 
-  isConstraintActive(constraint) {
-    return this.isBodyActive(constraint.bodyA) && this.isBodyActive(constraint.bodyB);
-  }
-
-  isBodyActive(body) {
-    return this.runBodies.some((record) => {
-      return record.active && record.body === body;
-    });
+    return {
+      first: firstRecord.body,
+      second: secondRecord.body,
+    };
   }
 
   removeConstraints() {
-    this.runConstraints.forEach((record) => {
-      this.matter.world.remove(record.constraint);
+    this.runJointRecords.forEach((record) => {
+      this.removeConstraintRecord(record);
     });
+  }
+
+  removeConstraintRecord(record) {
+    if (!record.constraint) {
+      return;
+    }
+
+    this.matter.world.remove(record.constraint);
+    record.constraint = null;
   }
 
   removeBodies() {
@@ -174,7 +251,7 @@ export class RunSession {
 
   clearState() {
     this.runBodies = [];
-    this.runConstraints = [];
+    this.runJointRecords = [];
     this.baseBodyRecords = [];
   }
 }

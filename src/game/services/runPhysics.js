@@ -47,11 +47,18 @@ export function isBodyOutsideWorld(body) {
 }
 
 export function isForceActive(force, elapsedSeconds) {
-  if (elapsedSeconds < force.startSeconds) {
+  return isTimeWindowActive(force, elapsedSeconds);
+}
+
+export function isTimeWindowActive(element, elapsedSeconds) {
+  const startSeconds = element.startSeconds ?? 0;
+  const endSeconds = element.endSeconds ?? null;
+
+  if (elapsedSeconds < startSeconds) {
     return false;
   }
 
-  return force.endSeconds === null || elapsedSeconds <= force.endSeconds;
+  return endSeconds === null || elapsedSeconds <= endSeconds;
 }
 
 function getMatterOptions(shape, isStatic) {

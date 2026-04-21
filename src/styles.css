@@ -103,6 +103,34 @@ p {
   margin: 0;
 }
 
+.level-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 20px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.level-control select {
+  width: 64px;
+  min-height: 34px;
+}
+
+.generate-level-button {
+  min-height: 34px;
+  margin-left: 8px;
+  padding: 0 12px;
+  color: var(--muted);
+}
+
+.header-gravity-text {
+  margin-left: 14px;
+  color: var(--muted);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
 .game-info {
   display: flex;
   gap: 24px;
@@ -120,6 +148,15 @@ p {
 
 .game-root canvas {
   display: block;
+}
+
+.level-instruction {
+  min-height: 44px;
+  padding: 8px 18px 0;
+  border-top: 1px solid var(--panel-line);
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.3;
 }
 
 .side-panel {
@@ -328,6 +365,25 @@ p {
 
 .three-columns {
   grid-template-columns: 1fr 1fr 1fr;
+}
+
+.fixed-options {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.fixed-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.fixed-option input {
+  width: 16px;
+  min-height: 16px;
+  padding: 0;
 }
 
 .play-row {

@@ -37,5 +37,8 @@ function getBaseShape(values) {
     y: values.y,
     mass: values.mass,
     angle: (values.angle ?? 0) + getBaseAngle(values.shape),
+    fixedX: Boolean(values.fixedX),
+    fixedY: Boolean(values.fixedY),
+    fixedAngle: Boolean(values.fixedAngle),
   };
 }

@@ -46,6 +46,10 @@ export class GameSceneUiController {
   }
 
   bindEvents() {
+    this.ui.levelSelect.addEventListener('change', () => this.scene.selectLevel());
+    this.ui.generateLevelButton.addEventListener('click', () => {
+      this.scene.generateSelectedLevel();
+    });
     this.ui.elementType.addEventListener('change', () => this.scene.selectElementType());
     this.bindPanelTabEvents();
     this.bindElementTypeTabEvents();
@@ -138,10 +142,15 @@ export class GameSceneUiController {
       this.ui.shapeSize,
       this.ui.shapeMass,
       this.ui.shapeAngle,
+      this.ui.shapeFixedX,
+      this.ui.shapeFixedY,
+      this.ui.shapeFixedAngle,
       this.ui.jointFirstShape,
       this.ui.jointSecondShape,
       this.ui.jointStrength,
       this.ui.jointDistance,
+      this.ui.jointStart,
+      this.ui.jointEnd,
       this.ui.forceShape,
       this.ui.forceStrength,
       this.ui.forceDirectionX,
@@ -328,6 +337,7 @@ export class GameSceneUiController {
   updatePanel() {
     this.ui.elementNote.textContent = getElementNote(this.ui.elementType.value);
     this.ui.sceneGravityText.textContent = this.getSceneGravityText();
+    this.ui.headerGravityText.textContent = this.getHeaderGravityText();
     this.ui.statusText.textContent = this.getStatusText();
     this.ui.scoreText.textContent = `Score: ${this.scene.getScore()}`;
     this.ui.timerText.textContent = getTimerText(
@@ -339,11 +349,24 @@ export class GameSceneUiController {
   }
 
   getSceneGravityText() {
-    const gravity = this.scene.level.gravity ?? {};
-    const gravityX = gravity.x ?? DEFAULTS.gravityX;
-    const gravityY = gravity.y ?? DEFAULTS.gravityY;
+    const gravity = this.getLevelGravity();
 
-    return `Scene gravity now: X ${gravityX}, Y ${gravityY}`;
+    return `Scene gravity now: X ${gravity.x}, Y ${gravity.y}`;
+  }
+
+  getHeaderGravityText() {
+    const gravity = this.getLevelGravity();
+
+    return `Gravity: X ${gravity.x}, Y ${gravity.y}`;
+  }
+
+  getLevelGravity() {
+    const gravity = this.scene.level.gravity ?? {};
+
+    return {
+      x: gravity.x ?? DEFAULTS.gravityX,
+      y: gravity.y ?? DEFAULTS.gravityY,
+    };
   }
 
   getStatusText() {
@@ -358,6 +381,8 @@ export class GameSceneUiController {
     const hasSelectedElement = Boolean(this.scene.selectedElementValue);
     const isLocked = this.scene.isSceneLocked();
 
+    this.ui.levelSelect.disabled = this.scene.isRunning;
+    this.ui.generateLevelButton.disabled = this.scene.isRunning;
     this.ui.shapeSelect.disabled = isLocked;
     this.ui.elementType.disabled = isLocked || hasSelectedElement;
     this.elementTypeTabs.forEach((tab) => {
@@ -371,7 +396,7 @@ export class GameSceneUiController {
     this.ui.updateShape.disabled = isLocked || !hasSelectedElement || !this.scene.isDraftValid;
     this.ui.cancelShape.disabled = isLocked || !hasSelectedElement;
     this.ui.deleteShape.disabled = isLocked || !hasSelectedElement;
-    this.ui.playButton.disabled = this.scene.isRunning;
+    this.ui.playButton.disabled = this.scene.isRunning || this.scene.hasPendingLevel();
     this.ui.stopButton.disabled = !this.scene.isRunning;
     this.updateShapeTypeButtonStates(isLocked, hasSelectedElement);
     this.updateElementListButtons();

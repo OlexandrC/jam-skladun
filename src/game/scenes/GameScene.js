@@ -13,6 +13,7 @@ import {
   setFormFromElement,
 } from '../services/draftElements.js';
 import { getElementValue } from '../services/elementCollection.js';
+import { makeLevel } from '../services/levelGenerator.js';
 import { GameSceneRenderer } from '../services/gameSceneRenderer.js';
 import { GameSceneUiController } from '../services/gameSceneUiController.js';
 import { areAllBaseShapesPlaced } from '../services/goalMatcher.js';
@@ -25,7 +26,8 @@ export class GameScene extends Phaser.Scene {
   constructor(levels) {
     super('GameScene');
     this.levels = levels;
-    this.level = levels[0];
+    this.selectedLevelNumber = 1;
+    this.level = makeLevel(this.selectedLevelNumber);
   }
 
   create() {
@@ -64,6 +66,7 @@ export class GameScene extends Phaser.Scene {
   setDomElements() {
     this.uiController = new GameSceneUiController(this);
     this.ui = this.uiController.ui;
+    this.ui.levelSelect.value = String(this.selectedLevelNumber);
   }
 
   setGraphics() {
@@ -492,11 +495,48 @@ export class GameScene extends Phaser.Scene {
     this.elapsedSeconds = 0;
     this.heldSeconds = 0;
     this.status = `Level: ${this.level.name}`;
+    this.ui.levelSelect.value = String(this.selectedLevelNumber);
     this.matter.world.setGravity(0, 0, this.getGravityScale());
     this.hideGoalCountdown();
     this.confettiLauncher.clear();
     this.refreshElementSelect();
     this.updateDraftFromForm();
+  }
+
+  selectLevel() {
+    if (this.isRunning) {
+      this.ui.levelSelect.value = String(this.selectedLevelNumber);
+      return;
+    }
+
+    this.status = this.getLevelSelectionStatus();
+    this.updatePanel();
+  }
+
+  generateSelectedLevel() {
+    if (this.isRunning) {
+      return;
+    }
+
+    this.selectedLevelNumber = this.getSelectedLevelInput();
+    this.level = makeLevel(this.selectedLevelNumber);
+    this.resetLevel();
+  }
+
+  getLevelSelectionStatus() {
+    if (!this.hasPendingLevel()) {
+      return `Level: ${this.level.name}`;
+    }
+
+    return `Level ${this.getSelectedLevelInput()} selected. Generate level to apply.`;
+  }
+
+  getSelectedLevelInput() {
+    return Number(this.ui.levelSelect.value);
+  }
+
+  hasPendingLevel() {
+    return this.getSelectedLevelInput() !== this.selectedLevelNumber;
   }
 
   finishRun(status, isWin) {

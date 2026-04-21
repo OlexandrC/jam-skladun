@@ -10,12 +10,33 @@
       <section class="stage-column" aria-label="Game area">
         <header class="game-heading">
           <h1>Jam Skladun</h1>
+          <label class="level-control">
+            Level
+            <select id="level-select">
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+            </select>
+          </label>
+          <button id="generate-level-button" class="generate-level-button" type="button">
+            Generate
+          </button>
+          <p id="header-gravity-text" class="header-gravity-text">Gravity: X 0, Y 9</p>
           <div class="game-info">
             <p id="score-text">Score: 0</p>
             <p id="timer-text">Time: 0.0</p>
           </div>
         </header>
         <main id="game-root" class="game-root" aria-label="Game scene"></main>
+        <p class="level-instruction">
+          Place blue into green.<br />
+          Add own shapes, joins and forces to do it.
+          Try do not use gravity changes.
+          Circles are esyest to place, rectangles more difficult, triangles are the hardest. You can regenerate level to make it easier or harder. 
+          Joints connect shapes together, forces push shapes in some direction. You can use them to build mechanisms or machines or bridges to move blue shape to green area.
+        </p>
       </section>
       <aside class="side-panel" aria-label="Element panel">
         <section class="panel-section play-row">
@@ -55,8 +76,8 @@
               </button>
               <button class="element-tab" type="button" data-element-type-tab="force">
                 <svg viewBox="0 0 48 34" aria-hidden="true">
-                  <line x1="8" y1="25" x2="34" y2="9"></line>
-                  <path d="M32 9 L42 7 L37 17 Z"></path>
+                  <line x1="8" y1="25" x2="31" y2="12"></line>
+                  <path d="M39 7 L27 8 L33 18 Z"></path>
                 </svg>
                 <span>Force</span>
               </button>
@@ -140,6 +161,21 @@
             </label>
           </section>
 
+          <section class="panel-section fixed-options" data-element-settings="shape" data-shape-params hidden>
+            <label class="fixed-option">
+              <input id="shape-fixed-x" type="checkbox" />
+              Fixed X
+            </label>
+            <label class="fixed-option">
+              <input id="shape-fixed-y" type="checkbox" />
+              Fixed Y
+            </label>
+            <label class="fixed-option">
+              <input id="shape-fixed-angle" type="checkbox" />
+              Fixed angle
+            </label>
+          </section>
+
           <section class="panel-section" data-element-settings="joint" hidden>
             <label for="joint-first-shape">First shape</label>
             <select id="joint-first-shape"></select>
@@ -150,11 +186,22 @@
           <section class="panel-section two-columns" data-element-settings="joint" data-joint-params hidden>
             <label>
               Strength
-              <input id="joint-strength" type="number" min="0.01" max="1" step="0.01" value="0.2" />
+              <input id="joint-strength" type="number" min="0.0001" max="0.01" step="0.0001" value="0.002" />
             </label>
             <label>
               Distance
               <input id="joint-distance" type="number" min="0" max="2000" step="1" value="120" />
+            </label>
+          </section>
+
+          <section class="panel-section two-columns" data-element-settings="joint" data-joint-params hidden>
+            <label>
+              Start
+              <input id="joint-start" type="number" min="0" max="9999" step="0.1" value="0" />
+            </label>
+            <label>
+              End
+              <input id="joint-end" type="number" min="0" max="9999" step="0.1" placeholder="Always" />
             </label>
           </section>
 

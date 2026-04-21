@@ -77,6 +77,9 @@ function makeDraftShape(ui, elementCounters, selectedElement) {
       size: getNumberInput(ui.shapeSize, DEFAULTS.shapeSize, 5, 500),
       mass: getNumberInput(ui.shapeMass, DEFAULTS.mass, 1, 1000),
       angle: degreesToRadians(getNumberInput(ui.shapeAngle, 0, 0, 360)),
+      fixedX: ui.shapeFixedX.checked,
+      fixedY: ui.shapeFixedY.checked,
+      fixedAngle: ui.shapeFixedAngle.checked,
     }),
   };
 }
@@ -95,8 +98,10 @@ function makeDraftJoint(ui, elementCounters, selectedElement) {
     name: getDraftName(ELEMENT_TYPES.joint, ui, elementCounters, selectedElement),
     firstShapeName: ui.jointFirstShape.value,
     secondShapeName: ui.jointSecondShape.value,
-    strength: getNumberInput(ui.jointStrength, DEFAULTS.jointStrength, 0.01, 1),
+    strength: getNumberInput(ui.jointStrength, DEFAULTS.jointStrength, 0.0001, 0.01),
     distance: getNumberInput(ui.jointDistance, DEFAULTS.jointDistance, 0, 2000),
+    startSeconds: getNumberInput(ui.jointStart, DEFAULTS.jointStartSeconds, 0, 9999),
+    endSeconds: getOptionalNumberInput(ui.jointEnd, 0, 9999),
   };
 }
 
@@ -177,14 +182,18 @@ function isDraftJointValid(joint, playerShapes) {
 
   return joint.firstShapeName !== joint.secondShapeName
     && hasPlayerShape(playerShapes, joint.firstShapeName)
-    && hasPlayerShape(playerShapes, joint.secondShapeName);
+    && hasPlayerShape(playerShapes, joint.secondShapeName)
+    && isTimeWindowValid(joint);
 }
 
 function isDraftForceValid(force, playerShapes) {
   const hasDirection = force.directionX !== 0 || force.directionY !== 0;
-  const isTimeValid = force.endSeconds === null || force.endSeconds >= force.startSeconds;
 
-  return hasPlayerShape(playerShapes, force.shapeName) && hasDirection && isTimeValid;
+  return hasPlayerShape(playerShapes, force.shapeName) && hasDirection && isTimeWindowValid(force);
+}
+
+function isTimeWindowValid(element) {
+  return element.endSeconds === null || element.endSeconds >= element.startSeconds;
 }
 
 function isDraftGravityValid(selectedElement, gravityModifier) {
@@ -206,6 +215,9 @@ function setFormFromShape(ui, shape) {
   ui.shapeSize.value = Math.round(getShapeSize(shape));
   ui.shapeMass.value = Math.round(shape.mass);
   ui.shapeAngle.value = radiansToDegrees((shape.angle ?? 0) - getBaseAngle(shape.shape));
+  ui.shapeFixedX.checked = Boolean(shape.fixedX);
+  ui.shapeFixedY.checked = Boolean(shape.fixedY);
+  ui.shapeFixedAngle.checked = Boolean(shape.fixedAngle);
 }
 
 function setFormFromJoint(ui, joint) {
@@ -213,6 +225,8 @@ function setFormFromJoint(ui, joint) {
   ui.jointSecondShape.value = joint.secondShapeName;
   ui.jointStrength.value = joint.strength;
   ui.jointDistance.value = joint.distance;
+  ui.jointStart.value = joint.startSeconds ?? DEFAULTS.jointStartSeconds;
+  ui.jointEnd.value = joint.endSeconds ?? '';
 }
 
 function setFormFromForce(ui, force) {
