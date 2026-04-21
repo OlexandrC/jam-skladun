@@ -1,6 +1,6 @@
 import { DEFAULTS, ELEMENT_TYPES, WORLD_LIMIT } from '../constants.js';
 import { getNumberInput, getOptionalNumberInput } from './formInput.js';
-import { getShapeSize, makePlayerShape } from './shapeFactory.js';
+import { getBaseAngle, getShapeSize, makePlayerShape } from './shapeFactory.js';
 import { isShapeColliding } from './shapeGeometry.js';
 
 const SHAPE_TYPES = ['circle', 'rectangle', 'triangle'];
@@ -76,8 +76,17 @@ function makeDraftShape(ui, elementCounters, selectedElement) {
       y: getNumberInput(ui.shapeY, 0, -WORLD_LIMIT, WORLD_LIMIT),
       size: getNumberInput(ui.shapeSize, DEFAULTS.shapeSize, 5, 500),
       mass: getNumberInput(ui.shapeMass, DEFAULTS.mass, 1, 1000),
+      angle: degreesToRadians(getNumberInput(ui.shapeAngle, 0, 0, 360)),
     }),
   };
+}
+
+function degreesToRadians(degrees) {
+  return degrees * Math.PI / 180;
+}
+
+function radiansToDegrees(radians) {
+  return Math.round(radians * 180 / Math.PI);
 }
 
 function makeDraftJoint(ui, elementCounters, selectedElement) {
@@ -196,6 +205,7 @@ function setFormFromShape(ui, shape) {
   ui.shapeY.value = Math.round(shape.y);
   ui.shapeSize.value = Math.round(getShapeSize(shape));
   ui.shapeMass.value = Math.round(shape.mass);
+  ui.shapeAngle.value = radiansToDegrees((shape.angle ?? 0) - getBaseAngle(shape.shape));
 }
 
 function setFormFromJoint(ui, joint) {

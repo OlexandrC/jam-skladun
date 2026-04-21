@@ -36,7 +36,10 @@ export class GameSceneRenderer {
 
     if (!this.isRunViewVisible()) {
       this.scene.level.baseShapes.forEach((shape) => this.drawPlayerShape(shape, COLORS.base, false));
-      this.scene.playerShapes.forEach((shape) => this.drawPlayerShape(shape, COLORS.player, true));
+      this.scene.playerShapes.forEach((shape) => {
+        const isSelected = this.isElementSelected('shape', shape.name);
+        this.drawPlayerShape(shape, COLORS.player, true, isSelected);
+      });
     }
   }
 
@@ -74,12 +77,18 @@ export class GameSceneRenderer {
   drawStoredElements() {
     const shouldLabel = !this.isRunViewVisible();
 
-    this.scene.playerJoints.forEach((joint) => this.drawJointElement(joint, false, shouldLabel));
-    this.scene.playerForces.forEach((force) => this.drawForceElement(force, false, shouldLabel));
+    this.scene.playerJoints.forEach((joint) => {
+      const isSelected = this.isElementSelected('joint', joint.name);
+      this.drawJointElement(joint, false, shouldLabel, isSelected);
+    });
+    this.scene.playerForces.forEach((force) => {
+      const isSelected = this.isElementSelected('force', force.name);
+      this.drawForceElement(force, false, shouldLabel, isSelected);
+    });
   }
 
   drawDraftElement() {
-    if (this.isRunViewVisible() || !this.scene.draftElement) {
+    if (!this.isDraftElementVisible()) {
       return;
     }
 
@@ -102,6 +111,12 @@ export class GameSceneRenderer {
     }
   }
 
+  isDraftElementVisible() {
+    return !this.isRunViewVisible()
+      && !this.scene.selectedElementValue
+      && Boolean(this.scene.draftElement);
+  }
+
   drawDraftShape() {
     const color = this.getDraftColor(COLORS.player);
 
@@ -113,7 +128,7 @@ export class GameSceneRenderer {
     this.addShapeLabel(this.scene.draftShape, color);
   }
 
-  drawJointElement(joint, isDraft, shouldLabel) {
+  drawJointElement(joint, isDraft, shouldLabel, isSelected = false) {
     const points = this.getJointPoints(joint);
 
     if (!points) {
@@ -121,7 +136,8 @@ export class GameSceneRenderer {
     }
 
     const color = isDraft ? this.getDraftColor(COLORS.joint) : COLORS.joint;
-    this.graphics.lineStyle(3, color, 0.9);
+    const lineColor = isSelected ? COLORS.selected : color;
+    this.graphics.lineStyle(isSelected ? 5 : 3, lineColor, 0.9);
     this.graphics.lineBetween(points.first.x, points.first.y, points.second.x, points.second.y);
 
     if (shouldLabel) {
@@ -129,7 +145,7 @@ export class GameSceneRenderer {
     }
   }
 
-  drawForceElement(force, isDraft, shouldLabel) {
+  drawForceElement(force, isDraft, shouldLabel, isSelected = false) {
     const startPoint = this.getShapePointByName(force.shapeName);
 
     if (!startPoint) {
@@ -138,7 +154,8 @@ export class GameSceneRenderer {
 
     const endPoint = this.getForceEndPoint(force, startPoint);
     const color = isDraft ? this.getDraftColor(COLORS.force) : COLORS.force;
-    this.drawArrow(startPoint, endPoint, color);
+    const drawColor = isSelected ? COLORS.selected : color;
+    this.drawArrow(startPoint, endPoint, drawColor);
 
     if (shouldLabel) {
       this.addShapeLabel({ ...endPoint, name: force.name }, color);
@@ -226,11 +243,12 @@ export class GameSceneRenderer {
     };
   }
 
-  drawPlayerShape(shape, color, shouldLabel) {
+  drawPlayerShape(shape, color, shouldLabel, isSelected = false) {
     drawShape(this.graphics, shape, {
       fillColor: color,
       fillAlpha: 0.88,
-      lineColor: color,
+      lineColor: isSelected ? COLORS.selected : color,
+      lineWidth: isSelected ? 4 : 2,
     });
 
     if (shouldLabel) {
@@ -254,6 +272,10 @@ export class GameSceneRenderer {
   clearLabels() {
     this.labels.forEach((label) => label.destroy());
     this.labels = [];
+  }
+
+  isElementSelected(kind, name) {
+    return this.scene.highlightedElementValue === `${kind}:${name}`;
   }
 
   isRunViewVisible() {

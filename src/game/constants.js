@@ -16,6 +16,7 @@ export const COLORS = {
   joint: 0xd4aeae,
   force: 0xFFB84D,
   invalid: 0xff5050,
+  selected: 0xffffff,
   text: '#eef4ff',
 };
 
@@ -75,6 +76,7 @@ export const UI_IDS = {
   shapeY: 'shape-y',
   shapeSize: 'shape-size',
   shapeMass: 'shape-mass',
+  shapeAngle: 'shape-angle',
   jointFirstShape: 'joint-first-shape',
   jointSecondShape: 'joint-second-shape',
   jointStrength: 'joint-strength',
@@ -87,8 +89,10 @@ export const UI_IDS = {
   forceEnd: 'force-end',
   gravityX: 'gravity-x',
   gravityY: 'gravity-y',
+  sceneGravityText: 'scene-gravity-text',
   addShape: 'add-shape',
   updateShape: 'update-shape',
+  cancelShape: 'cancel-shape',
   deleteShape: 'delete-shape',
   playButton: 'play-button',
   stopButton: 'stop-button',
@@ -96,5 +100,4 @@ export const UI_IDS = {
   statusText: 'status-text',
   scoreText: 'score-text',
   timerText: 'timer-text',
-  statsText: 'stats-text',
 };

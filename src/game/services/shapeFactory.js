@@ -23,6 +23,12 @@ export function getShapeSize(shape) {
   return shape.radius;
 }
 
+const TRIANGLE_BASE_ANGLE = Math.PI / 2;
+
+export function getBaseAngle(shape) {
+  return shape === 'triangle' ? TRIANGLE_BASE_ANGLE : 0;
+}
+
 function getBaseShape(values) {
   return {
     name: values.name,
@@ -30,6 +36,6 @@ function getBaseShape(values) {
     x: values.x,
     y: values.y,
     mass: values.mass,
-    angle: values.angle ?? 0,
+    angle: (values.angle ?? 0) + getBaseAngle(values.shape),
   };
 }

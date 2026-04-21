@@ -7,6 +7,8 @@
   --input: #151a25;
   --button: #2f394d;
   --button-hover: #3b4860;
+  --add-button: #4d9eff;
+  --add-button-hover: #72b5ff;
   --play: #43c77f;
   --danger: #ef5f6b;
 
@@ -101,6 +103,14 @@ p {
   margin: 0;
 }
 
+.game-info {
+  display: flex;
+  gap: 24px;
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 14px;
+}
+
 .game-root {
   position: relative;
   width: 960px;
@@ -139,6 +149,11 @@ p {
 
 .panel-note {
   min-height: 22px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.gravity-note {
   color: var(--muted);
   font-size: 14px;
 }
@@ -259,6 +274,13 @@ p {
   border-radius: 6px;
   padding: 6px;
   background: var(--input);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.element-row.is-selected {
+  border-color: #a894e0;
+  box-shadow: 0 0 0 1px #a894e0, inset 0 0 6px rgba(168, 148, 224, 0.15);
 }
 
 .element-row-info {
@@ -304,9 +326,33 @@ p {
   grid-template-columns: 1fr 1fr;
 }
 
-.actions,
+.three-columns {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
 .play-row {
   grid-template-columns: 56px 1fr 1fr;
+}
+
+.actions {
+  grid-template-columns: 1fr 1fr 56px;
+}
+
+#add-shape {
+  width: 56px;
+  border-color: #2f7ed8;
+  color: #071523;
+  background: var(--add-button);
+  font-weight: 800;
+}
+
+#add-shape:hover:not(:disabled) {
+  background: var(--add-button-hover);
+}
+
+#delete-shape {
+  border-color: color-mix(in srgb, var(--danger) 55%, var(--panel-line));
+  color: #ff9aa3;
 }
 
 .play-button {
@@ -320,10 +366,8 @@ p {
   background: #62d995;
 }
 
-#status-text,
-#score-text,
-#timer-text,
-#stats-text {
+#status-text {
+  min-height: 46px;
   color: var(--muted);
 }
 

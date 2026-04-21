@@ -28,6 +28,7 @@ function makeEmptyElementListMessage() {
 function makeElementListRow(element, elementValue) {
   const row = document.createElement('div');
   row.className = 'element-row';
+  row.dataset.elementRow = elementValue;
   row.append(
     makeElementListInfo(element),
     makeElementIconButton('edit', elementValue, 'Edit element'),

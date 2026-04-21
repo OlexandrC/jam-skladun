@@ -10,6 +10,10 @@
       <section class="stage-column" aria-label="Game area">
         <header class="game-heading">
           <h1>Jam Skladun</h1>
+          <div class="game-info">
+            <p id="score-text">Score: 0</p>
+            <p id="timer-text">Time: 0.0</p>
+          </div>
         </header>
         <main id="game-root" class="game-root" aria-label="Game scene"></main>
       </section>
@@ -110,7 +114,7 @@
             </select>
           </section>
 
-          <section class="panel-section two-columns" data-element-settings="shape">
+          <section class="panel-section two-columns" data-element-settings="shape" data-shape-params hidden>
             <label>
               X
               <input id="shape-x" type="number" min="-100000" max="100000" step="1" value="160" />
@@ -121,7 +125,7 @@
             </label>
           </section>
 
-          <section class="panel-section two-columns" data-element-settings="shape">
+          <section class="panel-section three-columns" data-element-settings="shape" data-shape-params hidden>
             <label>
               Size
               <input id="shape-size" type="number" min="5" max="500" step="1" value="40" />
@@ -129,6 +133,10 @@
             <label>
               Mass
               <input id="shape-mass" type="number" min="1" max="1000" step="1" value="10" />
+            </label>
+            <label>
+              Angle
+              <input id="shape-angle" type="number" min="0" max="360" step="1" value="0" />
             </label>
           </section>
 
@@ -139,7 +147,7 @@
             <select id="joint-second-shape"></select>
           </section>
 
-          <section class="panel-section two-columns" data-element-settings="joint" hidden>
+          <section class="panel-section two-columns" data-element-settings="joint" data-joint-params hidden>
             <label>
               Strength
               <input id="joint-strength" type="number" min="0.01" max="1" step="0.01" value="0.2" />
@@ -155,32 +163,32 @@
             <select id="force-shape"></select>
           </section>
 
-          <section class="panel-section two-columns" data-element-settings="force" hidden>
+          <section class="panel-section two-columns" data-element-settings="force" data-force-params hidden>
             <label>
-              Strength
-              <input id="force-strength" type="number" min="0" max="1000" step="1" value="10" />
+              X
+              <input id="force-direction-x" type="number" min="-10" max="10" step="1" value="1" />
             </label>
             <label>
-              Direction X
-              <input id="force-direction-x" type="number" min="-10" max="10" step="1" value="1" />
+              Y
+              <input id="force-direction-y" type="number" min="-10" max="10" step="1" value="0" />
             </label>
           </section>
 
-          <section class="panel-section two-columns" data-element-settings="force" hidden>
-            <label>
-              Direction Y
-              <input id="force-direction-y" type="number" min="-10" max="10" step="1" value="0" />
-            </label>
+          <section class="panel-section two-columns" data-element-settings="force" data-force-params hidden>
             <label>
               Start
               <input id="force-start" type="number" min="0" max="9999" step="0.1" value="0" />
             </label>
-          </section>
-
-          <section class="panel-section" data-element-settings="force" hidden>
             <label>
               End
               <input id="force-end" type="number" min="0" max="9999" step="0.1" placeholder="Always" />
+            </label>
+          </section>
+
+          <section class="panel-section" data-element-settings="force" data-force-params hidden>
+            <label>
+              Strength
+              <input id="force-strength" type="number" min="0" max="1000" step="1" value="10" />
             </label>
           </section>
 
@@ -195,10 +203,21 @@
             </label>
           </section>
 
-          <section class="panel-section actions">
+          <section class="panel-section" data-element-settings="gravity" hidden>
+            <p id="scene-gravity-text" class="gravity-note"></p>
+          </section>
+
+          <section class="panel-section actions" data-draft-actions>
             <button id="add-shape" type="button">+</button>
             <button id="update-shape" type="button">Update</button>
-            <button id="delete-shape" type="button">Delete</button>
+            <button id="cancel-shape" type="button">Cancel</button>
+            <button id="delete-shape" class="icon-button delete-button" type="button" aria-label="Delete element">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 7 h12"></path>
+                <path d="M9 7 V5 h6 v2"></path>
+                <path d="M8 10 l1 9 h6 l1 -9"></path>
+              </svg>
+            </button>
           </section>
         </div>
 
@@ -209,11 +228,6 @@
           </section>
         </div>
 
-        <section class="panel-section">
-          <p id="score-text">Score: 0</p>
-          <p id="timer-text">Time: 0.0</p>
-          <p id="stats-text">No stats yet</p>
-        </section>
       </aside>
     </div>
     <script type="module" src="/src/main.js"></script>

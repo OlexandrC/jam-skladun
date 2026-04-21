@@ -13,6 +13,14 @@ export function getShapeVertices(shape) {
   return [];
 }
 
+export function isPointInsideShape(point, shape) {
+  if (shape.shape === 'circle') {
+    return getPointDistance(point, shape) <= shape.radius;
+  }
+
+  return isPointInsidePolygon(point, getShapeVertices(shape));
+}
+
 export function isShapeInsideShape(innerShape, outerShape, tolerance) {
   if (outerShape.shape === 'circle') {
     return isShapeInsideCircle(innerShape, outerShape, tolerance);

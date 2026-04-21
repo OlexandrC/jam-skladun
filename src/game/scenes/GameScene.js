@@ -2,8 +2,8 @@ import Phaser from 'phaser';
 import {
   DEFAULTS,
   ELEMENT_TYPES,
+  GAME_AREA,
   PHYSICS,
-  UI_IDS,
 } from '../constants.js';
 import { ConfettiLauncher } from '../services/confettiLauncher.js';
 import {
@@ -12,30 +12,14 @@ import {
   makeDraftElement,
   setFormFromElement,
 } from '../services/draftElements.js';
-import {
-  getElementByValue,
-  getElementValue,
-  getScore,
-  getStoredElements,
-} from '../services/elementCollection.js';
-import { makeSelectOption, renderElementList } from '../services/elementDom.js';
+import { getElementValue } from '../services/elementCollection.js';
 import { GameSceneRenderer } from '../services/gameSceneRenderer.js';
+import { GameSceneUiController } from '../services/gameSceneUiController.js';
 import { areAllBaseShapesPlaced } from '../services/goalMatcher.js';
-import {
-  createMatterBody,
-  getBodyRecordName,
-  getForceVector,
-  getShapeFromBodyRecord,
-  isBodyOutsideWorld,
-  isForceActive,
-} from '../services/runPhysics.js';
+import { PlayerElementStore } from '../services/playerElementStore.js';
+import { RunSession } from '../services/runSession.js';
 import { updateScoreStats } from '../services/scoreStorage.js';
-import {
-  getDraftErrorText,
-  getElementNote,
-  getStatsText,
-  getTimerText,
-} from '../services/uiText.js';
+import { isPointInsideShape, isShapeColliding } from '../services/shapeGeometry.js';
 
 export class GameScene extends Phaser.Scene {
   constructor(levels) {
@@ -65,133 +49,65 @@ export class GameScene extends Phaser.Scene {
   setInitialState() {
     this.isRunning = false;
     this.isWinSnapshotVisible = false;
-    this.playerShapes = [];
-    this.playerJoints = [];
-    this.playerForces = [];
-    this.gravityModifier = null;
-    this.elementCounters = { circle: 0, rectangle: 0, triangle: 0, joint: 0, force: 0 };
+    this.playerElementStore = new PlayerElementStore();
     this.selectedElementValue = '';
+    this.highlightedElementValue = '';
     this.selectedPanelView = 'add';
-    this.runBodies = [];
-    this.runConstraints = [];
-    this.baseBodyRecords = [];
+    this.draggedShapeName = '';
+    this.dragOffset = null;
+    this.runSession = new RunSession(this.matter);
     this.elapsedSeconds = 0;
     this.heldSeconds = 0;
     this.status = `Level: ${this.level.name}`;
   }
 
   setDomElements() {
-    this.ui = Object.entries(UI_IDS).reduce((elements, [key, id]) => {
-      const element = document.getElementById(id);
-
-      if (!element) {
-        throw new Error(`[GAMESCENE-001] Missing UI element: ${id}`);
-      }
-
-      return { ...elements, [key]: element };
-    }, {});
+    this.uiController = new GameSceneUiController(this);
+    this.ui = this.uiController.ui;
   }
 
   setGraphics() {
     this.renderer = new GameSceneRenderer(this);
-    this.elementSettings = document.querySelectorAll('[data-element-settings]');
-    this.elementTypeTabs = document.querySelectorAll('[data-element-type-tab]');
-    this.shapeTypeButtons = document.querySelectorAll('[data-shape-type-button]');
-    this.clearShapeTypeButton = document.querySelector('[data-shape-type-clear]');
-    this.panelViews = document.querySelectorAll('[data-panel-view]');
-    this.panelTabs = document.querySelectorAll('[data-panel-tab]');
     this.countdownText = this.makeGoalCountdownText();
     this.confettiLauncher = new ConfettiLauncher(this);
   }
 
   bindUiEvents() {
-    this.ui.elementType.addEventListener('change', () => this.selectElementType());
-    this.bindPanelTabEvents();
-    this.bindElementTypeTabEvents();
-    this.bindShapeTypeButtonEvents();
-    this.bindElementListEvents();
-    this.ui.shapeSelect.addEventListener('change', () => this.selectPlayerElement());
-    this.bindDraftInputEvents();
-    this.ui.addShape.addEventListener('click', () => this.addDraftElement());
-    this.ui.updateShape.addEventListener('click', () => this.updateSelectedElement());
-    this.ui.deleteShape.addEventListener('click', () => this.deleteSelectedElement());
-    this.ui.playButton.addEventListener('click', () => this.startRun());
-    this.ui.stopButton.addEventListener('click', () => this.stopRun('Scene stopped'));
-    this.ui.resetButton.addEventListener('click', () => this.resetLevel());
+    this.uiController.bindEvents();
   }
 
-  bindPanelTabEvents() {
-    this.panelTabs.forEach((tab) => {
-      tab.addEventListener('click', () => this.showPanelView(tab.dataset.panelTab));
-    });
-  }
-
-  bindElementTypeTabEvents() {
-    this.elementTypeTabs.forEach((tab) => {
-      tab.addEventListener('click', () => this.selectElementTypeFromTab(tab.dataset.elementTypeTab));
-    });
-  }
-
-  bindShapeTypeButtonEvents() {
-    this.shapeTypeButtons.forEach((button) => {
-      button.addEventListener('click', () => this.selectDraftShapeType(button.dataset.shapeTypeButton));
-    });
-    this.clearShapeTypeButton.addEventListener('click', () => this.clearDraftShapeType());
-  }
-
-  bindElementListEvents() {
-    this.ui.elementList.addEventListener('click', (event) => {
-      this.handleElementListClick(event.target.closest('button'));
-    });
-  }
-
-  handleElementListClick(button) {
-    if (!button || this.isSceneLocked()) {
-      return;
-    }
-
-    if (button.dataset.elementEdit) {
-      this.selectElementForEditing(button.dataset.elementEdit);
-      return;
-    }
-
-    if (button.dataset.elementDelete) {
-      this.deleteElementFromList(button.dataset.elementDelete);
-    }
-  }
-
-  bindDraftInputEvents() {
-    this.getDraftInputs().forEach((input) => {
-      input.addEventListener('input', () => this.updateDraftFromForm());
-      input.addEventListener('change', () => this.updateDraftFromForm());
-    });
+  toggleHighlightedElement(elementValue) {
+    this.highlightedElementValue = this.highlightedElementValue === elementValue ? '' : elementValue;
+    this.highlightSelectedElement();
+    this.renderer.render();
   }
 
   getDraftInputs() {
-    return [
-      this.ui.shapeType,
-      this.ui.shapeX,
-      this.ui.shapeY,
-      this.ui.shapeSize,
-      this.ui.shapeMass,
-      this.ui.jointFirstShape,
-      this.ui.jointSecondShape,
-      this.ui.jointStrength,
-      this.ui.jointDistance,
-      this.ui.forceShape,
-      this.ui.forceStrength,
-      this.ui.forceDirectionX,
-      this.ui.forceDirectionY,
-      this.ui.forceStart,
-      this.ui.forceEnd,
-      this.ui.gravityX,
-      this.ui.gravityY,
-    ];
+    return this.uiController.getDraftInputs();
   }
 
   bindPointerEvents() {
-    this.input.on('pointerdown', (pointer) => this.updateDraftPositionFromPointer(pointer));
-    this.input.on('pointermove', (pointer) => this.dragDraftPositionFromPointer(pointer));
+    this.input.on('pointerdown', (pointer) => this.handlePointerDown(pointer));
+    this.input.on('pointermove', (pointer) => this.handlePointerMove(pointer));
+    this.input.on('pointerup', () => this.stopShapeDrag());
+    this.input.on('pointerupoutside', () => this.stopShapeDrag());
+  }
+
+  handlePointerDown(pointer) {
+    if (this.startStoredShapeDrag(pointer)) {
+      return;
+    }
+
+    this.updateDraftPositionFromPointer(pointer);
+  }
+
+  handlePointerMove(pointer) {
+    if (this.draggedShapeName) {
+      this.updateDraggedShapePosition(pointer);
+      return;
+    }
+
+    this.dragDraftPositionFromPointer(pointer);
   }
 
   dragDraftPositionFromPointer(pointer) {
@@ -212,6 +128,93 @@ export class GameScene extends Phaser.Scene {
     this.updateDraftFromForm();
   }
 
+  startStoredShapeDrag(pointer) {
+    if (this.isSceneLocked()) {
+      return false;
+    }
+
+    const shape = this.getPlayerShapeAtPointer(pointer);
+
+    if (!shape) {
+      return false;
+    }
+
+    this.selectElementForEditing(getElementValue(shape));
+    this.highlightedElementValue = getElementValue(shape);
+    this.draggedShapeName = shape.name;
+    this.dragOffset = {
+      x: shape.x - pointer.worldX,
+      y: shape.y - pointer.worldY,
+    };
+    this.updateDraggedShapePosition(pointer);
+    return true;
+  }
+
+  getPlayerShapeAtPointer(pointer) {
+    const point = { x: pointer.worldX, y: pointer.worldY };
+    const shapes = [...this.playerShapes].reverse();
+
+    return shapes.find((shape) => isPointInsideShape(point, shape));
+  }
+
+  updateDraggedShapePosition(pointer) {
+    const shape = this.getDraggedShape();
+
+    if (!shape || !this.dragOffset) {
+      this.stopShapeDrag();
+      return;
+    }
+
+    const movedShape = this.getMovedDraggedShape(shape, pointer);
+
+    if (!this.isPlayerShapePositionValid(movedShape)) {
+      return;
+    }
+
+    this.setPlayerShape(movedShape);
+    this.setShapePositionInputs(movedShape);
+    this.updateDraftFromForm();
+  }
+
+  getDraggedShape() {
+    return this.playerElementStore.getShapeByName(this.draggedShapeName);
+  }
+
+  getMovedDraggedShape(shape, pointer) {
+    return {
+      ...shape,
+      x: Math.round(pointer.worldX + this.dragOffset.x),
+      y: Math.round(pointer.worldY + this.dragOffset.y),
+    };
+  }
+
+  isPlayerShapePositionValid(shape) {
+    return !this.getPlayerShapeColliders(shape.name).some((collider) => {
+      return isShapeColliding(shape, collider);
+    });
+  }
+
+  getPlayerShapeColliders(shapeName) {
+    return [
+      ...this.getLevelCollisionShapes(),
+      ...this.playerElementStore.getPlayerShapeColliders(shapeName),
+    ];
+  }
+
+  setPlayerShape(movedShape) {
+    this.playerElementStore.setShape(movedShape);
+  }
+
+  setShapePositionInputs(shape) {
+    this.ui.shapeX.value = Math.round(shape.x);
+    this.ui.shapeY.value = Math.round(shape.y);
+  }
+
+  stopShapeDrag() {
+    this.draggedShapeName = '';
+    this.dragOffset = null;
+  }
+
   updateDraftFromForm() {
     this.updateVisibleSettings();
     this.refreshShapeReferenceSelects();
@@ -228,16 +231,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   getDraftCollisionShapes() {
-    const levelColliders = [
-      ...this.getLevelShapes('walls'),
-      ...this.getLevelShapes('baseShapes'),
-      ...this.getLevelShapes('obstacles'),
-    ];
-    const playerColliders = this.playerShapes.filter((shape) => {
-      return shape.name !== this.getSelectedElementName();
-    });
+    const playerColliders = this.playerElementStore.getPlayerShapeColliders(
+      this.getSelectedElementName(),
+    );
 
-    return [...levelColliders, ...playerColliders];
+    return [...this.getLevelCollisionShapes(), ...playerColliders];
   }
 
   addDraftElement() {
@@ -252,7 +250,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.saveNewDraftElement();
-    this.selectedElementValue = '';
+    this.clearEditedElement();
     this.refreshElementSelect();
     this.updateDraftFromForm();
   }
@@ -269,7 +267,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.saveUpdatedDraftElement();
-    this.selectedElementValue = '';
+    this.clearEditedElement();
     this.refreshElementSelect();
     this.updateDraftFromForm();
   }
@@ -280,9 +278,32 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.deleteStoredElement(this.getSelectedElement());
-    this.selectedElementValue = '';
+    this.clearEditedElement();
     this.refreshElementSelect();
     this.updateDraftFromForm();
+  }
+
+  cancelSelectedElementEdit() {
+    if (!this.selectedElementValue) {
+      return;
+    }
+
+    this.clearEditedElement();
+    this.refreshElementSelect();
+    this.updateDraftFromForm();
+  }
+
+  clearEditedElement() {
+    this.selectedElementValue = '';
+    this.ui.shapeSelect.value = '';
+    this.ui.shapeType.value = '';
+    this.clearDraftReferenceInputs();
+  }
+
+  clearDraftReferenceInputs() {
+    this.ui.jointFirstShape.value = '';
+    this.ui.jointSecondShape.value = '';
+    this.ui.forceShape.value = '';
   }
 
   selectElementForEditing(elementValue) {
@@ -323,6 +344,7 @@ export class GameScene extends Phaser.Scene {
   selectElementType() {
     this.selectedElementValue = '';
     this.ui.shapeSelect.value = '';
+    this.clearDraftReferenceInputs();
     this.updateDraftFromForm();
   }
 
@@ -350,27 +372,15 @@ export class GameScene extends Phaser.Scene {
   }
 
   refreshElementSelect() {
-    const options = [makeSelectOption('', 'New element')];
-    const elementOptions = this.getStoredElements().map((element) => {
-      return makeSelectOption(getElementValue(element), element.name);
-    });
-
-    this.ui.shapeSelect.replaceChildren(...options, ...elementOptions);
-    this.ui.shapeSelect.value = this.selectedElementValue;
-    this.renderElementList();
+    this.uiController.refreshElementSelect(this.getStoredElements(), this.selectedElementValue);
   }
 
-  renderElementList() {
-    renderElementList(this.ui.elementList, this.getStoredElements(), getElementValue);
+  highlightSelectedElement() {
+    this.uiController.highlightSelectedElement(this.highlightedElementValue);
   }
 
   updateVisibleSettings() {
-    this.elementSettings.forEach((section) => {
-      section.hidden = section.dataset.elementSettings !== this.ui.elementType.value;
-    });
-    this.updatePanelViews();
-    this.updateElementTypeTabs();
-    this.updateShapeTypeButtons();
+    this.uiController.updateVisibleSettings();
   }
 
   selectDraftShapeType(shapeType) {
@@ -380,6 +390,8 @@ export class GameScene extends Phaser.Scene {
 
     this.ui.elementType.value = ELEMENT_TYPES.shape;
     this.ui.shapeType.value = shapeType;
+    this.ui.shapeX.value = Math.round(GAME_AREA.width / 2);
+    this.ui.shapeY.value = Math.round(GAME_AREA.height / 2);
     this.updateDraftFromForm();
   }
 
@@ -394,156 +406,35 @@ export class GameScene extends Phaser.Scene {
 
   showPanelView(panelView) {
     this.selectedPanelView = panelView;
-    this.updatePanelViews();
+    this.uiController.updatePanelViews();
   }
 
-  updatePanelViews() {
-    this.panelViews.forEach((view) => {
-      view.hidden = view.dataset.panelView !== this.selectedPanelView;
-    });
-    this.updatePanelTabs();
-  }
+  selectPanelViewFromTab(panelView) {
+    this.showPanelView(panelView);
 
-  updatePanelTabs() {
-    this.panelTabs.forEach((tab) => {
-      const isActive = tab.dataset.panelTab === this.selectedPanelView;
-      tab.classList.toggle('is-active', isActive);
-      tab.setAttribute('aria-selected', String(isActive));
-    });
-  }
+    if (panelView !== 'add') {
+      return;
+    }
 
-  updateElementTypeTabs() {
-    this.elementTypeTabs.forEach((tab) => {
-      const isActive = tab.dataset.elementTypeTab === this.ui.elementType.value;
-      tab.classList.toggle('is-active', isActive);
-      tab.setAttribute('aria-selected', String(isActive));
-    });
-  }
-
-  updateShapeTypeButtons() {
-    this.shapeTypeButtons.forEach((button) => {
-      const isActive = button.dataset.shapeTypeButton === this.ui.shapeType.value;
-      button.classList.toggle('is-active', isActive);
-      button.setAttribute('aria-pressed', String(isActive));
-    });
+    this.cancelSelectedElementEdit();
   }
 
   refreshShapeReferenceSelects() {
-    const shapeNames = this.playerShapes.map((shape) => shape.name);
+    const shapeNames = this.playerElementStore.getShapeNames();
 
-    this.refreshReferenceSelect(this.ui.jointFirstShape, shapeNames);
-    this.refreshReferenceSelect(this.ui.jointSecondShape, shapeNames);
-    this.refreshReferenceSelect(this.ui.forceShape, shapeNames);
-  }
-
-  refreshReferenceSelect(select, values) {
-    const selectedValue = select.value;
-    const options = values.map((value) => makeSelectOption(value, value));
-
-    if (options.length === 0) {
-      options.push(makeSelectOption('', 'No shapes'));
-    }
-
-    select.replaceChildren(...options);
-    select.value = values.includes(selectedValue) ? selectedValue : values[0] ?? '';
+    this.uiController.refreshShapeReferenceSelects(shapeNames);
   }
 
   saveNewDraftElement() {
-    if (this.draftElement.kind === ELEMENT_TYPES.shape) {
-      this.playerShapes.push({ ...this.draftElement });
-      this.elementCounters[this.draftElement.shape] += 1;
-      return;
-    }
-
-    this.saveNewNonShapeDraftElement();
-  }
-
-  saveNewNonShapeDraftElement() {
-    if (this.draftElement.kind === ELEMENT_TYPES.joint) {
-      this.playerJoints.push({ ...this.draftElement });
-      this.elementCounters.joint += 1;
-      return;
-    }
-
-    if (this.draftElement.kind === ELEMENT_TYPES.force) {
-      this.playerForces.push({ ...this.draftElement });
-      this.elementCounters.force += 1;
-      return;
-    }
-
-    this.gravityModifier = { ...this.draftElement };
+    this.playerElementStore.addDraftElement(this.draftElement);
   }
 
   saveUpdatedDraftElement() {
-    if (this.draftElement.kind === ELEMENT_TYPES.shape) {
-      this.updateStoredShape();
-      return;
-    }
-
-    if (this.draftElement.kind === ELEMENT_TYPES.joint) {
-      this.updateStoredJoint();
-      return;
-    }
-
-    if (this.draftElement.kind === ELEMENT_TYPES.force) {
-      this.updateStoredForce();
-      return;
-    }
-
-    this.gravityModifier = { ...this.draftElement };
-  }
-
-  updateStoredShape() {
-    this.playerShapes = this.playerShapes.map((shape) => {
-      return shape.name === this.draftElement.name ? { ...this.draftElement } : shape;
-    });
-  }
-
-  updateStoredJoint() {
-    this.playerJoints = this.playerJoints.map((joint) => {
-      return joint.name === this.draftElement.name ? { ...this.draftElement } : joint;
-    });
-  }
-
-  updateStoredForce() {
-    this.playerForces = this.playerForces.map((force) => {
-      return force.name === this.draftElement.name ? { ...this.draftElement } : force;
-    });
+    this.playerElementStore.updateDraftElement(this.draftElement);
   }
 
   deleteStoredElement(element) {
-    if (!element) {
-      return;
-    }
-
-    if (element.kind === ELEMENT_TYPES.shape) {
-      this.deleteStoredShape(element.name);
-      return;
-    }
-
-    this.deleteStoredNonShapeElement(element);
-  }
-
-  deleteStoredShape(shapeName) {
-    this.playerShapes = this.playerShapes.filter((shape) => shape.name !== shapeName);
-    this.playerJoints = this.playerJoints.filter((joint) => {
-      return joint.firstShapeName !== shapeName && joint.secondShapeName !== shapeName;
-    });
-    this.playerForces = this.playerForces.filter((force) => force.shapeName !== shapeName);
-  }
-
-  deleteStoredNonShapeElement(element) {
-    if (element.kind === ELEMENT_TYPES.joint) {
-      this.playerJoints = this.playerJoints.filter((joint) => joint.name !== element.name);
-      return;
-    }
-
-    if (element.kind === ELEMENT_TYPES.force) {
-      this.playerForces = this.playerForces.filter((force) => force.name !== element.name);
-      return;
-    }
-
-    this.gravityModifier = null;
+    this.playerElementStore.deleteElement(element);
   }
 
   getSelectedElement() {
@@ -551,7 +442,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   getElementByValue(elementValue) {
-    return getElementByValue(this.getStoredElements(), elementValue);
+    return this.playerElementStore.getElementByValue(elementValue);
   }
 
   getSelectedElementName() {
@@ -559,12 +450,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   getStoredElements() {
-    return getStoredElements(
-      this.playerShapes,
-      this.playerJoints,
-      this.playerForces,
-      this.gravityModifier,
-    );
+    return this.playerElementStore.getElements();
   }
 
   startRun() {
@@ -572,10 +458,10 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    this.stopShapeDrag();
     this.confettiLauncher.clear();
     this.isWinSnapshotVisible = false;
     this.matter.world.resume();
-    this.clearRunBodies();
     this.isRunning = true;
     this.elapsedSeconds = 0;
     this.heldSeconds = 0;
@@ -596,14 +482,12 @@ export class GameScene extends Phaser.Scene {
   resetLevel() {
     this.isRunning = false;
     this.isWinSnapshotVisible = false;
+    this.stopShapeDrag();
     this.matter.world.resume();
     this.clearRunBodies();
-    this.playerShapes = [];
-    this.playerJoints = [];
-    this.playerForces = [];
-    this.gravityModifier = null;
-    this.elementCounters = { circle: 0, rectangle: 0, triangle: 0, joint: 0, force: 0 };
+    this.playerElementStore.reset();
     this.selectedElementValue = '';
+    this.highlightedElementValue = '';
     this.selectedPanelView = 'add';
     this.elapsedSeconds = 0;
     this.heldSeconds = 0;
@@ -618,6 +502,7 @@ export class GameScene extends Phaser.Scene {
   finishRun(status, isWin) {
     this.isRunning = false;
     this.isWinSnapshotVisible = isWin;
+    this.stopShapeDrag();
     this.status = status;
     this.matter.world.setGravity(0, 0, this.getGravityScale());
     this.hideGoalCountdown();
@@ -650,134 +535,24 @@ export class GameScene extends Phaser.Scene {
   }
 
   createRunBodies() {
-    this.getLevelShapes('walls').forEach((shape) => this.addBodyRecord(shape, 'wall', true));
-    this.getLevelShapes('obstacles').forEach((shape) => this.addBodyRecord(shape, 'obstacle', shape.isStatic));
-    this.level.baseShapes.forEach((shape) => this.addBodyRecord(shape, 'base', false));
-    this.playerShapes.forEach((shape) => this.addBodyRecord(shape, 'player', false));
-    this.baseBodyRecords = this.runBodies.filter((record) => record.kind === 'base');
-    this.createRunConstraints();
-  }
-
-  addBodyRecord(shape, kind, isStatic) {
-    const body = createMatterBody(this.matter, shape, Boolean(isStatic));
-    const record = {
-      body,
-      shape,
-      kind,
-      active: true,
-    };
-
-    this.runBodies.push(record);
+    this.runSession.start(this.level, this.playerShapes, this.playerJoints);
   }
 
   clearRunBodies() {
-    this.runConstraints.forEach((record) => {
-      this.matter.world.remove(record.constraint);
-    });
-    this.runBodies.forEach((record) => {
-      this.matter.world.remove(record.body);
-    });
-    this.runBodies = [];
-    this.runConstraints = [];
-    this.baseBodyRecords = [];
+    this.runSession.clear();
   }
 
   updateRunningScene(deltaSeconds) {
     this.elapsedSeconds += deltaSeconds;
-    this.clearBodiesOutsideWorld();
-    this.clearInactiveRunConstraints();
-    this.applyActiveForces();
+    this.runSession.update(this.elapsedSeconds, this.playerForces);
     this.updateWinProgress(deltaSeconds);
     this.updateTimeLimit();
     this.renderer.render();
     this.updatePanel();
   }
 
-  createRunConstraints() {
-    this.playerJoints.forEach((joint) => {
-      const firstRecord = this.getRunBodyRecordByName(joint.firstShapeName);
-      const secondRecord = this.getRunBodyRecordByName(joint.secondShapeName);
-
-      if (!firstRecord || !secondRecord) {
-        return;
-      }
-
-      this.addRunConstraint(joint, firstRecord.body, secondRecord.body);
-    });
-  }
-
-  addRunConstraint(joint, firstBody, secondBody) {
-    const constraint = this.matter.add.constraint(
-      firstBody,
-      secondBody,
-      joint.distance,
-      joint.strength,
-      { label: joint.name },
-    );
-
-    this.runConstraints.push({ constraint, joint });
-  }
-
-  applyActiveForces() {
-    this.playerForces.forEach((force) => {
-      if (!isForceActive(force, this.elapsedSeconds)) {
-        return;
-      }
-
-      this.applyForceToBody(force);
-    });
-  }
-
-  applyForceToBody(force) {
-    const record = this.getRunBodyRecordByName(force.shapeName);
-
-    if (!record?.active) {
-      return;
-    }
-
-    Phaser.Physics.Matter.Matter.Body.applyForce(
-      record.body,
-      record.body.position,
-      getForceVector(force),
-    );
-  }
-
   getRunBodyRecordByName(name) {
-    return this.runBodies.find((record) => {
-      return getBodyRecordName(record) === name;
-    });
-  }
-
-  clearBodiesOutsideWorld() {
-    this.runBodies.forEach((record) => {
-      if (!record.active || !isBodyOutsideWorld(record.body)) {
-        return;
-      }
-
-      record.active = false;
-      this.matter.world.remove(record.body);
-    });
-  }
-
-  clearInactiveRunConstraints() {
-    this.runConstraints = this.runConstraints.filter((record) => {
-      if (this.isConstraintActive(record.constraint)) {
-        return true;
-      }
-
-      this.matter.world.remove(record.constraint);
-      return false;
-    });
-  }
-
-  isConstraintActive(constraint) {
-    return this.isRunBodyActive(constraint.bodyA) && this.isRunBodyActive(constraint.bodyB);
-  }
-
-  isRunBodyActive(body) {
-    return this.runBodies.some((record) => {
-      return record.active && record.body === body;
-    });
+    return this.runSession.getBodyRecordByName(name);
   }
 
   updateWinProgress(deltaSeconds) {
@@ -804,9 +579,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   getActiveBaseShapes() {
-    return this.baseBodyRecords
-      .filter((record) => record.active)
-      .map((record) => getShapeFromBodyRecord(record));
+    return this.runSession.getActiveBaseShapes();
   }
 
   updateTimeLimit() {
@@ -849,78 +622,51 @@ export class GameScene extends Phaser.Scene {
   }
 
   updatePanel() {
-    this.ui.elementNote.textContent = getElementNote(this.ui.elementType.value);
-    this.ui.statusText.textContent = this.getStatusText();
-    this.ui.scoreText.textContent = `Score: ${this.getScore()}`;
-    this.ui.timerText.textContent = getTimerText(
-      this.elapsedSeconds,
-      this.heldSeconds,
-      this.getRequiredHoldSeconds(),
-    );
-    this.ui.statsText.textContent = getStatsText();
-    this.updateButtonStates();
-  }
-
-  getStatusText() {
-    if (!this.isDraftValid && !this.isSceneLocked()) {
-      return `${this.status}. ${getDraftErrorText(this.draftElement)}`;
-    }
-
-    return this.status;
-  }
-
-  updateButtonStates() {
-    const hasSelectedElement = Boolean(this.selectedElementValue);
-    const isLocked = this.isSceneLocked();
-
-    this.ui.shapeSelect.disabled = isLocked;
-    this.ui.elementType.disabled = isLocked || hasSelectedElement;
-    this.elementTypeTabs.forEach((tab) => {
-      tab.disabled = isLocked || hasSelectedElement;
-    });
-    this.getDraftInputs().forEach((input) => {
-      input.disabled = isLocked;
-    });
-    this.ui.shapeType.disabled = isLocked || hasSelectedElement;
-    this.ui.addShape.disabled = isLocked || !this.isDraftValid || hasSelectedElement;
-    this.ui.updateShape.disabled = isLocked || !hasSelectedElement || !this.isDraftValid;
-    this.ui.deleteShape.disabled = isLocked || !hasSelectedElement;
-    this.ui.playButton.disabled = this.isRunning;
-    this.ui.stopButton.disabled = !this.isRunning;
-    this.updateShapeTypeButtonStates(isLocked, hasSelectedElement);
-    this.updateElementListButtons();
-  }
-
-  updateShapeTypeButtonStates(isLocked, hasSelectedElement) {
-    const isDisabled = isLocked || hasSelectedElement;
-
-    this.shapeTypeButtons.forEach((button) => {
-      button.disabled = isDisabled;
-    });
-    this.clearShapeTypeButton.disabled = isDisabled || !this.ui.shapeType.value;
-  }
-
-  updateElementListButtons() {
-    this.ui.elementList.querySelectorAll('button').forEach((button) => {
-      button.disabled = this.isSceneLocked();
-    });
+    this.uiController.updatePanel();
   }
 
   isSceneLocked() {
     return this.isRunning || this.isWinSnapshotVisible;
   }
 
+  get playerShapes() {
+    return this.playerElementStore.playerShapes;
+  }
+
+  get playerJoints() {
+    return this.playerElementStore.playerJoints;
+  }
+
+  get playerForces() {
+    return this.playerElementStore.playerForces;
+  }
+
+  get gravityModifier() {
+    return this.playerElementStore.gravityModifier;
+  }
+
+  get elementCounters() {
+    return this.playerElementStore.elementCounters;
+  }
+
+  get runBodies() {
+    return this.runSession.runBodies;
+  }
+
   getScore() {
-    return getScore(
-      this.playerShapes,
-      this.playerJoints,
-      this.playerForces,
-      this.gravityModifier,
-    );
+    return this.playerElementStore.getScore();
   }
 
   getLevelShapes(key) {
     return this.level[key] ?? [];
+  }
+
+  getLevelCollisionShapes() {
+    return [
+      ...this.getLevelShapes('walls'),
+      ...this.getLevelShapes('baseShapes'),
+      ...this.getLevelShapes('obstacles'),
+    ];
   }
 
   getTolerance() {
