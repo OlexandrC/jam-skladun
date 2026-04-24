@@ -1,17 +1,31 @@
+import Phaser from 'phaser';
 import { DEFAULTS, PHYSICS, WORLD_LIMIT } from '../constants.js';
 
+const MatterBodies = Phaser.Physics.Matter.Matter.Bodies;
+const MatterSleeping = Phaser.Physics.Matter.Matter.Sleeping;
+
 export function createMatterBody(matter, shape, isStatic) {
+  const body = makeMatterBody(shape, isStatic);
+  matter.world.add(body);
+  return body;
+}
+
+export function makeMatterBody(shape, isStatic = false) {
   const options = getMatterOptions(shape, isStatic);
 
   if (shape.shape === 'circle') {
-    return matter.add.circle(shape.x, shape.y, shape.radius, options);
+    return MatterBodies.circle(shape.x, shape.y, shape.radius, options);
   }
 
   if (shape.shape === 'rectangle') {
-    return matter.add.rectangle(shape.x, shape.y, shape.width, shape.height, options);
+    return MatterBodies.rectangle(shape.x, shape.y, shape.width, shape.height, options);
   }
 
-  return matter.add.polygon(shape.x, shape.y, 3, shape.radius, options);
+  return MatterBodies.polygon(shape.x, shape.y, 3, shape.radius, options);
+}
+
+export function wakeMatterBody(body) {
+  MatterSleeping.set(body, false);
 }
 
 export function getForceVector(force) {
@@ -70,6 +84,8 @@ function getMatterOptions(shape, isStatic) {
     friction: PHYSICS.friction,
     frictionAir: PHYSICS.frictionAir,
     restitution: PHYSICS.restitution,
+    sleepThreshold: PHYSICS.sleepThreshold,
+    slop: PHYSICS.bodySlop,
   };
 }
 

@@ -45,7 +45,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    this.updateRunningScene(delta / 1000);
+    this.updateRunningScene(delta);
   }
 
   setInitialState() {
@@ -60,6 +60,7 @@ export class GameScene extends Phaser.Scene {
     this.runSession = new RunSession(this.matter);
     this.elapsedSeconds = 0;
     this.heldSeconds = 0;
+    this.physicsAccumulatorMs = 0;
     this.status = `Level: ${this.level.name}`;
   }
 
@@ -468,6 +469,7 @@ export class GameScene extends Phaser.Scene {
     this.isRunning = true;
     this.elapsedSeconds = 0;
     this.heldSeconds = 0;
+    this.physicsAccumulatorMs = 0;
     this.status = 'Physics running';
     this.setRunGravity();
     this.createRunBodies();
@@ -494,6 +496,7 @@ export class GameScene extends Phaser.Scene {
     this.selectedPanelView = 'add';
     this.elapsedSeconds = 0;
     this.heldSeconds = 0;
+    this.physicsAccumulatorMs = 0;
     this.status = `Level: ${this.level.name}`;
     this.ui.levelSelect.value = String(this.selectedLevelNumber);
     this.matter.world.setGravity(0, 0, this.getGravityScale());
@@ -544,6 +547,7 @@ export class GameScene extends Phaser.Scene {
     this.isWinSnapshotVisible = isWin;
     this.stopShapeDrag();
     this.status = status;
+    this.physicsAccumulatorMs = 0;
     this.matter.world.setGravity(0, 0, this.getGravityScale());
     this.hideGoalCountdown();
 
@@ -582,13 +586,56 @@ export class GameScene extends Phaser.Scene {
     this.runSession.clear();
   }
 
-  updateRunningScene(deltaSeconds) {
-    this.elapsedSeconds += deltaSeconds;
-    this.runSession.update(this.elapsedSeconds, this.playerForces);
-    this.updateWinProgress(deltaSeconds);
-    this.updateTimeLimit();
+  updateRunningScene(deltaMilliseconds) {
+    this.physicsAccumulatorMs = this.getNextPhysicsAccumulator(deltaMilliseconds);
+
+    let stepCount = 0;
+
+    while (
+      this.isRunning
+      && this.physicsAccumulatorMs >= this.getFixedStepMilliseconds()
+      && stepCount < PHYSICS.maxSubSteps
+    ) {
+      this.runFixedStep();
+      this.physicsAccumulatorMs -= this.getFixedStepMilliseconds();
+      stepCount += 1;
+    }
+
+    if (!this.isRunning) {
+      return;
+    }
+
     this.renderer.render();
     this.updatePanel();
+  }
+
+  getNextPhysicsAccumulator(deltaMilliseconds) {
+    const clampedDelta = Math.min(deltaMilliseconds, PHYSICS.maxFrameDeltaMs);
+    const nextAccumulator = this.physicsAccumulatorMs + clampedDelta;
+
+    return Math.min(nextAccumulator, this.getMaxPhysicsAccumulator());
+  }
+
+  getMaxPhysicsAccumulator() {
+    return this.getFixedStepMilliseconds() * PHYSICS.maxSubSteps;
+  }
+
+  getFixedStepMilliseconds() {
+    return PHYSICS.fixedStepMs;
+  }
+
+  getFixedStepSeconds() {
+    return this.getFixedStepMilliseconds() / 1000;
+  }
+
+  runFixedStep() {
+    const stepMilliseconds = this.getFixedStepMilliseconds();
+    const stepSeconds = this.getFixedStepSeconds();
+
+    this.elapsedSeconds += stepSeconds;
+    this.runSession.step(this.elapsedSeconds, this.playerForces, stepMilliseconds);
+    this.updateWinProgress(stepSeconds);
+    this.updateTimeLimit();
   }
 
   getRunBodyRecordByName(name) {

@@ -40,6 +40,9 @@ export const DEFAULTS = {
 };
 
 export const PHYSICS = {
+  fixedStepMs: 1000 / 120,
+  maxSubSteps: 12,
+  maxFrameDeltaMs: 100,
   gravityScale: 0.001,
   gravityCoefficient: 0.5,
   massCoefficient: 0.5,
@@ -47,6 +50,13 @@ export const PHYSICS = {
   frictionAir: 0.01,
   forceScale: 0.00005,
   restitution: 0.12,
+  positionIterations: 16,
+  velocityIterations: 12,
+  constraintIterations: 6,
+  sleepThreshold: 120,
+  bodySlop: 0.01,
+  lockConstraintStiffness: 0.98,
+  lockConstraintDamping: 0.1,
 };
 
 export const SCORE_COSTS = {

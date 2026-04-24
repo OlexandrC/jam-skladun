@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { PHYSICS } from '../constants.js';
 import {
   createMatterBody,
   getBodyRecordName,
@@ -7,6 +8,7 @@ import {
   isBodyOutsideWorld,
   isForceActive,
   isTimeWindowActive,
+  wakeMatterBody,
 } from './runPhysics.js';
 
 const MatterBody = Phaser.Physics.Matter.Matter.Body;
@@ -32,11 +34,12 @@ export class RunSession {
     this.clearState();
   }
 
-  update(elapsedSeconds, playerForces) {
-    this.clearBodiesOutsideWorld();
+  step(elapsedSeconds, playerForces, deltaMilliseconds) {
     this.updateActiveConstraints(elapsedSeconds);
-    this.applyActiveForces(playerForces, elapsedSeconds);
     this.applyPlayerShapeLocks();
+    this.applyActiveForces(playerForces, elapsedSeconds);
+    this.matter.world.step(deltaMilliseconds);
+    this.clearBodiesOutsideWorld();
   }
 
   getBodyRecordByName(name) {
@@ -71,13 +74,59 @@ export class RunSession {
 
   addBodyRecord(shape, kind, isStatic) {
     const body = createMatterBody(this.matter, shape, Boolean(isStatic));
-
-    this.runBodies.push({
+    const record = {
       body,
       shape,
       kind,
       active: true,
-    });
+      lockConstraint: null,
+    };
+
+    this.runBodies.push(record);
+    this.configureBodyRecord(record);
+  }
+
+  configureBodyRecord(record) {
+    if (record.kind !== 'player') {
+      return;
+    }
+
+    this.configurePositionLock(record);
+    this.configureAngleLock(record);
+  }
+
+  configurePositionLock(record) {
+    if (!record.shape.fixedX || !record.shape.fixedY) {
+      return;
+    }
+
+    record.lockConstraint = this.makeLockConstraint(record);
+  }
+
+  makeLockConstraint(record) {
+    return this.matter.add.worldConstraint(
+      record.body,
+      0,
+      PHYSICS.lockConstraintStiffness,
+      {
+        damping: PHYSICS.lockConstraintDamping,
+        label: `${getBodyRecordName(record)}_lock`,
+        pointA: {
+          x: record.shape.x,
+          y: record.shape.y,
+        },
+      },
+    );
+  }
+
+  configureAngleLock(record) {
+    if (!record.shape.fixedAngle) {
+      return;
+    }
+
+    MatterBody.setInertia(record.body, Infinity);
+    MatterBody.setAngularVelocity(record.body, 0);
+    MatterBody.setAngle(record.body, record.shape.angle ?? 0);
   }
 
   setJointRecords(playerJoints) {
@@ -143,11 +192,21 @@ export class RunSession {
       return;
     }
 
+    const forceVector = this.getUnlockedForceVector(record, getForceVector(force));
+
+    wakeMatterBody(record.body);
     Phaser.Physics.Matter.Matter.Body.applyForce(
       record.body,
       record.body.position,
-      getForceVector(force),
+      forceVector,
     );
+  }
+
+  getUnlockedForceVector(record, forceVector) {
+    return {
+      x: record.shape.fixedX ? 0 : forceVector.x,
+      y: record.shape.fixedY ? 0 : forceVector.y,
+    };
   }
 
   applyPlayerShapeLocks() {
@@ -172,7 +231,7 @@ export class RunSession {
   }
 
   applyPositionLocks(record) {
-    if (!record.shape.fixedX && !record.shape.fixedY) {
+    if (record.lockConstraint || (!record.shape.fixedX && !record.shape.fixedY)) {
       return;
     }
 
@@ -210,6 +269,7 @@ export class RunSession {
       }
 
       record.active = false;
+      this.removeBodyLock(record);
       this.matter.world.remove(record.body);
     });
   }
@@ -245,8 +305,18 @@ export class RunSession {
 
   removeBodies() {
     this.runBodies.forEach((record) => {
+      this.removeBodyLock(record);
       this.matter.world.remove(record.body);
     });
+  }
+
+  removeBodyLock(record) {
+    if (!record.lockConstraint) {
+      return;
+    }
+
+    this.matter.world.remove(record.lockConstraint);
+    record.lockConstraint = null;
   }
 
   clearState() {
