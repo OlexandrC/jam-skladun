@@ -412,7 +412,7 @@ export class GameSceneUiController {
     const isMuted = !hasTrack || this.scene.isMusicMuted;
     const buttonText = hasTrack && this.scene.isMusicMuted ? 'Unmute music' : 'Mute music';
 
-    this.ui.musicToggleButton.textContent = buttonText;
+    this.ui.musicToggleButton.innerHTML = getMusicToggleIconMarkup(isMuted);
     this.ui.musicToggleButton.classList.toggle('is-muted', isMuted);
     this.ui.musicToggleButton.setAttribute('aria-pressed', String(hasTrack && !this.scene.isMusicMuted));
     this.ui.musicToggleButton.setAttribute('aria-label', buttonText);
@@ -432,4 +432,12 @@ export class GameSceneUiController {
       button.disabled = this.scene.isSceneLocked();
     });
   }
+}
+
+function getMusicToggleIconMarkup(isMuted) {
+  if (isMuted) {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10 v4 h4 l5 4 V6 l-5 4 Z"></path><path d="M16 9 l5 6"></path><path d="M21 9 l-5 6"></path></svg>';
+  }
+
+  return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10 v4 h4 l5 4 V6 l-5 4 Z"></path><path d="M16 9 c1.6 1.2 2.4 2.8 2.4 5 s-0.8 3.8 -2.4 5"></path><path d="M18.8 6.5 c2.3 1.9 3.7 4.5 3.7 7.5 s-1.4 5.6 -3.7 7.5"></path></svg>';
 }

@@ -8,6 +8,8 @@
   --text: #eef4ff;
   --muted: #a8b3c7;
   --input: #151a25;
+  --input-out-of-range: #4b231d;
+  --input-out-of-range-border: #d68452;
   --button: #2f394d;
   --button-hover: #3b4860;
   --add-button: #4d9eff;
@@ -68,6 +70,15 @@ select {
   padding: 6px 8px;
   color: var(--text);
   background: var(--input);
+}
+
+input[type="number"]:out-of-range {
+  border-color: var(--input-out-of-range-border);
+  background: var(--input-out-of-range);
+}
+
+input[type="number"]:out-of-range:focus {
+  outline-color: var(--input-out-of-range-border);
 }
 
 h1 {
@@ -136,15 +147,28 @@ p {
 
 .music-toggle-button {
   min-height: 34px;
+  min-width: 34px;
   margin-left: 8px;
-  padding: 0 12px;
+  padding: 0;
   border-color: #2ba765;
   color: #102418;
   background: var(--play);
+  display: grid;
+  place-items: center;
 }
 
 .music-toggle-button:hover:not(:disabled) {
   background: #62d995;
+}
+
+.music-toggle-button svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
 }
 
 .music-toggle-button.is-muted {
