@@ -9,6 +9,11 @@ const RISE_BASE_DURATION = 950;
 const RISE_SIZE_DURATION = 35;
 const FALL_BASE_DURATION = 1500;
 const FALL_SIZE_DURATION = 80;
+const MAX_PIECE_HEIGHT = (9 + 3 * 3) * SIZE_SCALE;
+const DISPLAY_DURATION = RISE_BASE_DURATION
+  + MAX_PIECE_HEIGHT * RISE_SIZE_DURATION
+  + FALL_BASE_DURATION
+  + MAX_PIECE_HEIGHT * FALL_SIZE_DURATION;
 
 export class ConfettiLauncher {
   constructor(scene) {
@@ -19,6 +24,10 @@ export class ConfettiLauncher {
   play() {
     this.clear();
     this.getPieces().forEach((piece) => this.addPiece(piece));
+  }
+
+  getDisplayDuration() {
+    return DISPLAY_DURATION;
   }
 
   clear() {

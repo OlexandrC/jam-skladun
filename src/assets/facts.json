@@ -1,0 +1,121 @@
+[
+  {
+    "mechanism": "Gears",
+    "facts": [
+      "Gears are wheels with teeth.",
+      "Gear teeth help wheels grip each other.",
+      "Two connected gears spin in opposite directions.",
+      "A small gear can make a big gear spin slower but with more power.",
+      "A big gear can make a small gear spin faster but with less power.",
+      "Gears can change speed, power, and direction.",
+      "Many machines use gears to move parts together.",
+      "Clock gears can move very slowly and very precisely.",
+      "Gears need oil or grease to work smoothly.",
+      "If gear teeth are damaged, the mechanism can jam.",
+      "Some gears can turn round motion into straight motion.",
+      "Gear systems are used in clocks, cars, machines, and toys."
+    ]
+  },
+  {
+    "mechanism": "Lever",
+    "facts": [
+      "A lever is a bar that turns around a fixed point.",
+      "The fixed point of a lever is called a fulcrum.",
+      "A lever can help lift heavy objects with less force.",
+      "A longer lever can give more lifting power.",
+      "A short lever can move faster but gives less power.",
+      "Levers can change the direction of force.",
+      "A seesaw is a simple example of a lever.",
+      "A crowbar uses lever power to move or lift objects.",
+      "Scissors use levers to make cutting easier.",
+      "A lever works best when the fulcrum is in the right place.",
+      "Many old machines used levers because they are simple and strong.",
+      "Levers are used in tools, traps, gates, engines, and game mechanisms."
+    ]
+  },
+  {
+    "mechanism": "Spring Mechanism",
+    "facts": [
+      "A spring mechanism stores energy when a spring is squeezed or stretched.",
+      "A compressed spring pushes back when it is released.",
+      "A stretched spring pulls back toward its normal shape.",
+      "Springs can make movement smoother and less sudden.",
+      "A spring can return a part to its starting position.",
+      "Many toys use springs to create motion.",
+      "Pens often use small springs inside the click mechanism.",
+      "Some clocks use springs to store power.",
+      "A spring can absorb shocks and reduce vibration.",
+      "Different springs can be soft or stiff.",
+      "If a spring is too weak, it may not move the mechanism well.",
+      "Spring mechanisms are used in tools, locks, suspensions, and machines."
+    ]
+  },
+  {
+    "mechanism": "Linear Actuator",
+    "facts": [
+      "A linear actuator moves something in a straight line.",
+      "It changes energy into pushing or pulling motion.",
+      "Some linear actuators use electricity to move.",
+      "Some linear actuators use air or fluid pressure.",
+      "A linear actuator can open, close, lift, or slide parts.",
+      "It is useful when turning motion is not needed.",
+      "Many automatic doors use linear actuator movement.",
+      "Hospital beds can use linear actuators to change position.",
+      "Linear actuators can move very slowly and with control.",
+      "Some actuators are strong enough to lift heavy loads.",
+      "The travel distance of an actuator is called its stroke.",
+      "Linear actuators are used in robots, machines, vehicles, and home devices."
+    ]
+  },
+  {
+    "mechanism": "Piston",
+    "facts": [
+      "A piston is a part that moves back and forth inside a cylinder.",
+      "A piston can be pushed by gas, air, or liquid pressure.",
+      "When a piston moves, it can create force.",
+      "Pistons are important parts of many engines.",
+      "An engine piston helps turn fuel energy into motion.",
+      "A pump piston can push liquid through a system.",
+      "The tight fit between piston and cylinder helps control pressure.",
+      "Pistons often work in repeating cycles.",
+      "A piston can move in a straight line while other parts rotate.",
+      "Seals help stop pressure from leaking around a piston.",
+      "If a piston gets stuck, the mechanism may stop working.",
+      "Pistons are used in engines, pumps, compressors, and hydraulic systems."
+    ]
+  },
+  {
+    "mechanism": "Lock Mechanism",
+    "facts": [
+      "A lock mechanism keeps a door, box, or device closed.",
+      "Many locks open only when the correct key or code is used.",
+      "Inside a lock, small parts must line up in the right way.",
+      "A key changes the positions of parts inside the lock.",
+      "Some locks use pins, while others use levers or discs.",
+      "A latch is the part that holds the lock closed.",
+      "Turning the key can move the latch and unlock the mechanism.",
+      "A good lock should be hard to open without permission.",
+      "Some locks are mechanical and need no electricity.",
+      "Other locks are electronic and can use cards, buttons, or sensors.",
+      "Locks need clean moving parts to work smoothly.",
+      "Lock mechanisms are used in doors, cabinets, bikes, safes, and machines."
+    ]
+  },
+  {
+    "mechanism": "Differential",
+    "facts": [
+      "A differential is a gear mechanism that lets connected wheels turn at different speeds.",
+      "It is very useful when a vehicle turns.",
+      "During a turn, the outer wheel travels farther than the inner wheel.",
+      "The differential helps both wheels keep moving smoothly in that situation.",
+      "Without a differential, turning can be harder and rougher.",
+      "A differential usually works together with axle shafts and gears.",
+      "It can send power to two wheels at the same time.",
+      "Small gears inside the differential help share movement.",
+      "Differentials are common in cars and other wheeled machines.",
+      "Some machines use special differentials to improve traction.",
+      "If a differential is damaged, the vehicle may make noise or turn badly.",
+      "A differential helps combine power transfer with flexible wheel motion."
+    ]
+  }
+]

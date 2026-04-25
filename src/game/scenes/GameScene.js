@@ -13,6 +13,13 @@ import {
   setFormFromElement,
 } from '../services/draftElements.js';
 import { getElementValue } from '../services/elementCollection.js';
+import {
+  FACT_CARD_DATA_KEY,
+  FACT_CARD_DATA_URL,
+  getFactCardEntries,
+  getFactCardImageAssets,
+} from '../services/factCardCatalog.js';
+import { getNextFactCard, setFactCardShown } from '../services/factCardStorage.js';
 import { makeLevel } from '../services/levelGenerator.js';
 import { GameSceneRenderer } from '../services/gameSceneRenderer.js';
 import { GameSceneUiController } from '../services/gameSceneUiController.js';
@@ -20,6 +27,7 @@ import { areAllBaseShapesPlaced } from '../services/goalMatcher.js';
 import { PlayerElementStore } from '../services/playerElementStore.js';
 import { RunSession } from '../services/runSession.js';
 import { updateScoreStats } from '../services/scoreStorage.js';
+import { WinFactCard } from '../services/winFactCard.js';
 import { isPointInsideShape, isShapeColliding } from '../services/shapeGeometry.js';
 
 export class GameScene extends Phaser.Scene {
@@ -30,10 +38,19 @@ export class GameScene extends Phaser.Scene {
     this.level = makeLevel(this.selectedLevelNumber);
   }
 
+  preload() {
+    this.load.json(FACT_CARD_DATA_KEY, FACT_CARD_DATA_URL);
+    getFactCardImageAssets().forEach(({ key, url }) => {
+      this.load.image(key, url);
+    });
+  }
+
   create() {
     this.setInitialState();
     this.setDomElements();
     this.setGraphics();
+    this.setFactCardEntries();
+    this.prepareCurrentLevelFactCard();
     this.bindUiEvents();
     this.bindPointerEvents();
     this.refreshElementSelect();
@@ -49,8 +66,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   setInitialState() {
+    this.factCardEntries = [];
+    this.currentFactCard = null;
     this.isRunning = false;
     this.isWinSnapshotVisible = false;
+    this.isCurrentLevelFactCardAvailable = false;
     this.playerElementStore = new PlayerElementStore();
     this.selectedElementValue = '';
     this.highlightedElementValue = '';
@@ -62,6 +82,7 @@ export class GameScene extends Phaser.Scene {
     this.heldSeconds = 0;
     this.physicsAccumulatorMs = 0;
     this.status = `Level: ${this.level.name}`;
+    this.winFactTimer = null;
   }
 
   setDomElements() {
@@ -74,6 +95,13 @@ export class GameScene extends Phaser.Scene {
     this.renderer = new GameSceneRenderer(this);
     this.countdownText = this.makeGoalCountdownText();
     this.confettiLauncher = new ConfettiLauncher(this);
+    this.winFactCard = new WinFactCard(this, () => this.clearWinFactCard());
+  }
+
+  setFactCardEntries() {
+    const factGroups = this.cache.json.get(FACT_CARD_DATA_KEY);
+
+    this.factCardEntries = getFactCardEntries(factGroups);
   }
 
   bindUiEvents() {
@@ -463,6 +491,12 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.stopShapeDrag();
+    this.clearWinFactCard();
+
+    if (this.isWinSnapshotVisible) {
+      this.clearRunBodies();
+    }
+
     this.confettiLauncher.clear();
     this.isWinSnapshotVisible = false;
     this.matter.world.resume();
@@ -477,7 +511,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   stopRun(status) {
-    if (!this.isRunning) {
+    if (!this.canStopRun()) {
+      return;
+    }
+
+    if (this.isWinSnapshotVisible) {
+      this.clearWinSnapshot(status);
       return;
     }
 
@@ -502,6 +541,7 @@ export class GameScene extends Phaser.Scene {
     this.matter.world.setGravity(0, 0, this.getGravityScale());
     this.hideGoalCountdown();
     this.confettiLauncher.clear();
+    this.clearWinFactCard();
     this.refreshElementSelect();
     this.updateDraftFromForm();
   }
@@ -523,6 +563,7 @@ export class GameScene extends Phaser.Scene {
 
     this.selectedLevelNumber = this.getSelectedLevelInput();
     this.level = makeLevel(this.selectedLevelNumber);
+    this.prepareCurrentLevelFactCard();
     this.resetLevel();
   }
 
@@ -550,6 +591,7 @@ export class GameScene extends Phaser.Scene {
     this.physicsAccumulatorMs = 0;
     this.matter.world.setGravity(0, 0, this.getGravityScale());
     this.hideGoalCountdown();
+    this.clearWinFactCard();
 
     if (isWin) {
       this.matter.world.pause();
@@ -563,7 +605,68 @@ export class GameScene extends Phaser.Scene {
 
     if (isWin) {
       this.confettiLauncher.play();
+      this.scheduleWinFactCard();
     }
+  }
+
+  clearWinSnapshot(status) {
+    this.isWinSnapshotVisible = false;
+    this.stopShapeDrag();
+    this.status = status;
+    this.physicsAccumulatorMs = 0;
+    this.matter.world.resume();
+    this.clearRunBodies();
+    this.hideGoalCountdown();
+    this.confettiLauncher.clear();
+    this.clearWinFactCard();
+    this.renderer.render();
+    this.updatePanel();
+  }
+
+  scheduleWinFactCard() {
+    if (!this.canShowCurrentLevelFactCard()) {
+      return;
+    }
+
+    this.isCurrentLevelFactCardAvailable = false;
+    this.winFactTimer = this.time.delayedCall(
+      this.confettiLauncher.getDisplayDuration(),
+      () => this.showWinFactCard(),
+    );
+  }
+
+  showWinFactCard() {
+    this.winFactTimer = null;
+
+    if (!this.isWinSnapshotVisible || !this.currentFactCard) {
+      return;
+    }
+
+    setFactCardShown(this.factCardEntries, this.currentFactCard.id);
+    this.winFactCard.show(this.currentFactCard);
+  }
+
+  clearWinFactCard() {
+    this.clearPendingWinFactCard();
+    this.winFactCard.hide();
+  }
+
+  clearPendingWinFactCard() {
+    if (!this.winFactTimer) {
+      return;
+    }
+
+    this.time.removeEvent(this.winFactTimer);
+    this.winFactTimer = null;
+  }
+
+  prepareCurrentLevelFactCard() {
+    this.currentFactCard = getNextFactCard(this.factCardEntries);
+    this.isCurrentLevelFactCardAvailable = Boolean(this.currentFactCard);
+  }
+
+  canShowCurrentLevelFactCard() {
+    return Boolean(this.currentFactCard) && this.isCurrentLevelFactCardAvailable;
   }
 
   setRunGravity() {
@@ -572,6 +675,32 @@ export class GameScene extends Phaser.Scene {
     const gravityY = (gravity.y ?? DEFAULTS.gravityY) + (this.gravityModifier?.y ?? 0);
 
     this.matter.world.setGravity(gravityX, gravityY, this.getGravityScale());
+  }
+
+  getVisibleGravity() {
+    const gravity = this.level.gravity ?? {};
+    const modifier = this.getVisibleGravityModifier();
+
+    return {
+      x: (gravity.x ?? DEFAULTS.gravityX) + (modifier?.x ?? 0),
+      y: (gravity.y ?? DEFAULTS.gravityY) + (modifier?.y ?? 0),
+    };
+  }
+
+  getVisibleGravityModifier() {
+    if (this.isSceneLocked()) {
+      return this.gravityModifier;
+    }
+
+    if (this.draftElement?.kind !== ELEMENT_TYPES.gravity) {
+      return this.gravityModifier;
+    }
+
+    if (!this.gravityModifier || this.getSelectedElement()?.kind === ELEMENT_TYPES.gravity) {
+      return this.draftElement;
+    }
+
+    return this.gravityModifier;
   }
 
   getGravityScale() {
@@ -710,6 +839,10 @@ export class GameScene extends Phaser.Scene {
 
   updatePanel() {
     this.uiController.updatePanel();
+  }
+
+  canStopRun() {
+    return this.isRunning || this.isWinSnapshotVisible;
   }
 
   isSceneLocked() {

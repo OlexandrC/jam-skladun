@@ -8,8 +8,10 @@ export const WORLD_LIMIT = 100000;
 
 export const COLORS = {
   background: 0x1B2130,
+  gravityIndicator: 0x33415c,
   obstacle: 0xA8B3C7,
   wall: 0xA8B3C7,
+  inactive: 0xA8B3C7,
   base: 0x7070ff,
   player: 0xa894e0,
   goal: 0xa2ecd3,
@@ -17,6 +19,7 @@ export const COLORS = {
   force: 0xFFB84D,
   invalid: 0xff5050,
   selected: 0xffffff,
+  fixedIndicatorIcon: 0xeef4ff,
   text: '#eef4ff',
 };
 
@@ -74,6 +77,7 @@ export const ELEMENT_TYPES = {
 };
 
 export const STORAGE_KEYS = {
+  factProgress: 'jam-skladun.factProgress',
   scoreStats: 'jam-skladun.scoreStats',
 };
 

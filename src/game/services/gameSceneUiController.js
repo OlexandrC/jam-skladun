@@ -1,4 +1,4 @@
-import { DEFAULTS, ELEMENT_TYPES, UI_IDS } from '../constants.js';
+import { ELEMENT_TYPES, UI_IDS } from '../constants.js';
 import { getElementValue } from './elementCollection.js';
 import { makeSelectOption, renderElementList } from './elementDom.js';
 import {
@@ -349,24 +349,15 @@ export class GameSceneUiController {
   }
 
   getSceneGravityText() {
-    const gravity = this.getLevelGravity();
+    const gravity = this.scene.getVisibleGravity();
 
     return `Scene gravity now: X ${gravity.x}, Y ${gravity.y}`;
   }
 
   getHeaderGravityText() {
-    const gravity = this.getLevelGravity();
+    const gravity = this.scene.getVisibleGravity();
 
     return `Gravity: X ${gravity.x}, Y ${gravity.y}`;
-  }
-
-  getLevelGravity() {
-    const gravity = this.scene.level.gravity ?? {};
-
-    return {
-      x: gravity.x ?? DEFAULTS.gravityX,
-      y: gravity.y ?? DEFAULTS.gravityY,
-    };
   }
 
   getStatusText() {
@@ -397,7 +388,7 @@ export class GameSceneUiController {
     this.ui.cancelShape.disabled = isLocked || !hasSelectedElement;
     this.ui.deleteShape.disabled = isLocked || !hasSelectedElement;
     this.ui.playButton.disabled = this.scene.isRunning || this.scene.hasPendingLevel();
-    this.ui.stopButton.disabled = !this.scene.isRunning;
+    this.ui.stopButton.disabled = !this.scene.canStopRun();
     this.updateShapeTypeButtonStates(isLocked, hasSelectedElement);
     this.updateElementListButtons();
   }
