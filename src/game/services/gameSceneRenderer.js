@@ -33,6 +33,7 @@ export class GameSceneRenderer {
         fillColor: COLORS.goal,
         fillAlpha: 0.22,
         lineColor: COLORS.goal,
+        showRadiusIndicator: false,
       });
     });
   }
@@ -55,6 +56,8 @@ export class GameSceneRenderer {
       fillColor: color,
       fillAlpha: 0.92,
       lineColor: color,
+      radiusLineColor: COLORS.background,
+      radiusLineAlpha: 0.9,
     });
   }
 
@@ -149,6 +152,8 @@ export class GameSceneRenderer {
       fillColor: color,
       fillAlpha: 0.36,
       lineColor: color,
+      radiusLineColor: COLORS.background,
+      radiusLineAlpha: 0.92,
     });
     this.addShapeLabel(this.scene.draftShape, color);
     this.drawFixedIndicators(this.scene.draftShape, color);
@@ -313,6 +318,8 @@ export class GameSceneRenderer {
       fillAlpha: 0.88,
       lineColor,
       lineWidth: isSelected ? 4 : 2,
+      radiusLineColor: COLORS.background,
+      radiusLineAlpha: 0.95,
     });
 
     if (shouldLabel) {

@@ -19,6 +19,11 @@ import {
   getFactCardEntries,
   getFactCardImageAssets,
 } from '../services/factCardCatalog.js';
+import { getMusicTracks, getRandomMusicTrack } from '../services/musicCatalog.js';
+import {
+  getCollisionSoundAssets,
+  getRandomCollisionSoundKey,
+} from '../services/soundEffectCatalog.js';
 import { getNextFactCard, setFactCardShown } from '../services/factCardStorage.js';
 import { makeLevel } from '../services/levelGenerator.js';
 import { GameSceneRenderer } from '../services/gameSceneRenderer.js';
@@ -29,6 +34,15 @@ import { RunSession } from '../services/runSession.js';
 import { updateScoreStats } from '../services/scoreStorage.js';
 import { WinFactCard } from '../services/winFactCard.js';
 import { isPointInsideShape, isShapeColliding } from '../services/shapeGeometry.js';
+
+const MatterEvents = Phaser.Physics.Matter.Matter.Events;
+const COLLISION_SOUND_COOLDOWN_MS = 80;
+const MIN_COLLISION_SOUND_SPEED = 0.45;
+const MAX_COLLISION_SOUND_SPEED = 6;
+const MIN_COLLISION_SOUND_VOLUME = 0.08;
+const MAX_COLLISION_SOUND_VOLUME = 0.75;
+const WIN_SOUND_KEY = 'win-sound';
+const WIN_SOUND_URL = new URL('../../assets/Win sound.ogg', import.meta.url).href;
 
 export class GameScene extends Phaser.Scene {
   constructor(levels) {
@@ -43,6 +57,10 @@ export class GameScene extends Phaser.Scene {
     getFactCardImageAssets().forEach(({ key, url }) => {
       this.load.image(key, url);
     });
+    getCollisionSoundAssets().forEach(({ key, url }) => {
+      this.load.audio(key, url);
+    });
+    this.load.audio(WIN_SOUND_KEY, WIN_SOUND_URL);
   }
 
   create() {
@@ -50,6 +68,7 @@ export class GameScene extends Phaser.Scene {
     this.setDomElements();
     this.setGraphics();
     this.setFactCardEntries();
+    this.bindCollisionSoundEvents();
     this.prepareCurrentLevelFactCard();
     this.bindUiEvents();
     this.bindPointerEvents();
@@ -71,6 +90,13 @@ export class GameScene extends Phaser.Scene {
     this.isRunning = false;
     this.isWinSnapshotVisible = false;
     this.isCurrentLevelFactCardAvailable = false;
+    this.musicTracks = getMusicTracks();
+    this.collisionSoundKeys = getCollisionSoundAssets().map(({ key }) => key);
+    this.currentCollisionSoundKey = getRandomCollisionSoundKey(this.collisionSoundKeys);
+    this.currentMusicTrack = null;
+    this.currentMusicAudio = null;
+    this.isMusicMuted = false;
+    this.lastCollisionSoundTime = -Infinity;
     this.playerElementStore = new PlayerElementStore();
     this.selectedElementValue = '';
     this.highlightedElementValue = '';
@@ -106,6 +132,11 @@ export class GameScene extends Phaser.Scene {
 
   bindUiEvents() {
     this.uiController.bindEvents();
+  }
+
+  bindCollisionSoundEvents() {
+    this.collisionStartHandler = (event) => this.handleCollisionStart(event);
+    MatterEvents.on(this.matter.world.engine, 'collisionStart', this.collisionStartHandler);
   }
 
   toggleHighlightedElement(elementValue) {
@@ -527,6 +558,7 @@ export class GameScene extends Phaser.Scene {
     this.isRunning = false;
     this.isWinSnapshotVisible = false;
     this.stopShapeDrag();
+    this.resetCollisionSoundState();
     this.matter.world.resume();
     this.clearRunBodies();
     this.playerElementStore.reset();
@@ -563,8 +595,71 @@ export class GameScene extends Phaser.Scene {
 
     this.selectedLevelNumber = this.getSelectedLevelInput();
     this.level = makeLevel(this.selectedLevelNumber);
+    this.setCollisionSoundForLevel();
     this.prepareCurrentLevelFactCard();
+    this.playRandomLevelTrack();
     this.resetLevel();
+  }
+
+  toggleMusicPlayback() {
+    if (!this.hasSelectedMusicTrack()) {
+      return;
+    }
+
+    this.isMusicMuted = !this.isMusicMuted;
+    this.restartCurrentMusic();
+    this.updatePanel();
+  }
+
+  playRandomLevelTrack() {
+    const track = getRandomMusicTrack(this.musicTracks, this.getCurrentMusicTrackKey());
+
+    if (!track) {
+      return;
+    }
+
+    this.currentMusicTrack = track;
+    this.restartCurrentMusic();
+  }
+
+  restartCurrentMusic() {
+    this.stopCurrentMusic();
+
+    if (this.isMusicMuted || !this.currentMusicTrack) {
+      return;
+    }
+
+    const musicAudio = makeLoopedMusicAudio(this.currentMusicTrack.url);
+
+    this.currentMusicAudio = musicAudio;
+    musicAudio.play().catch(() => {
+      if (this.currentMusicAudio !== musicAudio) {
+        return;
+      }
+
+      this.stopCurrentMusic();
+      this.updatePanel();
+    });
+  }
+
+  stopCurrentMusic() {
+    if (!this.currentMusicAudio) {
+      return;
+    }
+
+    this.currentMusicAudio.pause();
+    this.currentMusicAudio.currentTime = 0;
+    this.currentMusicAudio.src = '';
+    this.currentMusicAudio.load();
+    this.currentMusicAudio = null;
+  }
+
+  hasSelectedMusicTrack() {
+    return Boolean(this.currentMusicTrack);
+  }
+
+  getCurrentMusicTrackKey() {
+    return this.currentMusicTrack?.key ?? '';
   }
 
   getLevelSelectionStatus() {
@@ -587,6 +682,7 @@ export class GameScene extends Phaser.Scene {
     this.isRunning = false;
     this.isWinSnapshotVisible = isWin;
     this.stopShapeDrag();
+    this.resetCollisionSoundState();
     this.status = status;
     this.physicsAccumulatorMs = 0;
     this.matter.world.setGravity(0, 0, this.getGravityScale());
@@ -604,6 +700,7 @@ export class GameScene extends Phaser.Scene {
     this.updatePanel();
 
     if (isWin) {
+      this.playWinSound();
       this.confettiLauncher.play();
       this.scheduleWinFactCard();
     }
@@ -612,6 +709,7 @@ export class GameScene extends Phaser.Scene {
   clearWinSnapshot(status) {
     this.isWinSnapshotVisible = false;
     this.stopShapeDrag();
+    this.resetCollisionSoundState();
     this.status = status;
     this.physicsAccumulatorMs = 0;
     this.matter.world.resume();
@@ -736,6 +834,77 @@ export class GameScene extends Phaser.Scene {
 
     this.renderer.render();
     this.updatePanel();
+  }
+
+  handleCollisionStart(event) {
+    if (!this.isRunning || !this.canPlayCollisionSound()) {
+      return;
+    }
+
+    const soundVolume = this.getStrongestCollisionSoundVolume(event.pairs);
+
+    if (soundVolume <= 0) {
+      return;
+    }
+
+    this.playCollisionSound(soundVolume);
+  }
+
+  canPlayCollisionSound() {
+    return Boolean(this.currentCollisionSoundKey)
+      && this.time.now - this.lastCollisionSoundTime >= COLLISION_SOUND_COOLDOWN_MS;
+  }
+
+  getStrongestCollisionSoundVolume(pairs) {
+    let strongestVolume = 0;
+
+    pairs.forEach((pair) => {
+      const volume = this.getCollisionSoundVolume(pair);
+
+      if (volume > strongestVolume) {
+        strongestVolume = volume;
+      }
+    });
+
+    return strongestVolume;
+  }
+
+  getCollisionSoundVolume(pair) {
+    const bodyA = pair.bodyA?.parent ?? pair.bodyA;
+    const bodyB = pair.bodyB?.parent ?? pair.bodyB;
+    const recordA = this.runSession.getBodyRecordByBody(bodyA);
+    const recordB = this.runSession.getBodyRecordByBody(bodyB);
+
+    if (!recordA?.active || !recordB?.active) {
+      return 0;
+    }
+
+    return getCollisionSoundVolumeFromSpeed(getImpactSpeed(bodyA, bodyB));
+  }
+
+  playCollisionSound(volume) {
+    if (!this.currentCollisionSoundKey) {
+      return;
+    }
+
+    this.lastCollisionSoundTime = this.time.now;
+    this.sound.play(this.currentCollisionSoundKey, { volume });
+  }
+
+  playWinSound() {
+    this.sound.stopByKey(WIN_SOUND_KEY);
+    this.sound.play(WIN_SOUND_KEY);
+  }
+
+  resetCollisionSoundState() {
+    this.lastCollisionSoundTime = -Infinity;
+  }
+
+  setCollisionSoundForLevel() {
+    this.currentCollisionSoundKey = getRandomCollisionSoundKey(
+      this.collisionSoundKeys,
+      this.currentCollisionSoundKey,
+    );
   }
 
   getNextPhysicsAccumulator(deltaMilliseconds) {
@@ -896,4 +1065,34 @@ export class GameScene extends Phaser.Scene {
   getRequiredHoldSeconds() {
     return this.level.requiredHoldSeconds ?? DEFAULTS.requiredHoldSeconds;
   }
+}
+
+function makeLoopedMusicAudio(url) {
+  const audio = new Audio(url);
+
+  audio.loop = true;
+  audio.preload = 'auto';
+  return audio;
+}
+
+function getImpactSpeed(bodyA, bodyB) {
+  const velocityX = (bodyA?.velocity?.x ?? 0) - (bodyB?.velocity?.x ?? 0);
+  const velocityY = (bodyA?.velocity?.y ?? 0) - (bodyB?.velocity?.y ?? 0);
+
+  return Math.hypot(velocityX, velocityY);
+}
+
+function getCollisionSoundVolumeFromSpeed(speed) {
+  if (speed < MIN_COLLISION_SOUND_SPEED) {
+    return 0;
+  }
+
+  const normalizedSpeed = Phaser.Math.Clamp(
+    (speed - MIN_COLLISION_SOUND_SPEED) / (MAX_COLLISION_SOUND_SPEED - MIN_COLLISION_SOUND_SPEED),
+    0,
+    1,
+  );
+
+  return MIN_COLLISION_SOUND_VOLUME
+    + Math.sqrt(normalizedSpeed) * (MAX_COLLISION_SOUND_VOLUME - MIN_COLLISION_SOUND_VOLUME);
 }

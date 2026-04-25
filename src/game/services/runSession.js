@@ -48,6 +48,12 @@ export class RunSession {
     });
   }
 
+  getBodyRecordByBody(body) {
+    const bodyId = body?.parent?.id ?? body?.id;
+
+    return this.runBodies.find((record) => record.body.id === bodyId);
+  }
+
   getActiveBaseShapes() {
     return this.baseBodyRecords
       .filter((record) => record.active)

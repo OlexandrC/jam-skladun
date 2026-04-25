@@ -75,6 +75,7 @@ function makeDraftShape(ui, elementCounters, selectedElement) {
       x: getNumberInput(ui.shapeX, 0, -WORLD_LIMIT, WORLD_LIMIT),
       y: getNumberInput(ui.shapeY, 0, -WORLD_LIMIT, WORLD_LIMIT),
       size: getNumberInput(ui.shapeSize, DEFAULTS.shapeSize, 5, 500),
+      width: getNumberInput(ui.shapeWidth, DEFAULTS.shapeWidth, 1, 500),
       mass: getNumberInput(ui.shapeMass, DEFAULTS.mass, 1, 1000),
       angle: degreesToRadians(getNumberInput(ui.shapeAngle, 0, 0, 360)),
       fixedX: ui.shapeFixedX.checked,
@@ -213,6 +214,7 @@ function setFormFromShape(ui, shape) {
   ui.shapeX.value = Math.round(shape.x);
   ui.shapeY.value = Math.round(shape.y);
   ui.shapeSize.value = Math.round(getShapeSize(shape));
+  ui.shapeWidth.value = Math.round(shape.width ?? getShapeSize(shape));
   ui.shapeMass.value = Math.round(shape.mass);
   ui.shapeAngle.value = radiansToDegrees((shape.angle ?? 0) - getBaseAngle(shape.shape));
   ui.shapeFixedX.checked = Boolean(shape.fixedX);

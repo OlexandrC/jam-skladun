@@ -37,6 +37,7 @@ export const DEFAULTS = {
   forceStartSeconds: 0,
   forceStrength: 10,
   shapeSize: 40,
+  shapeWidth: 40,
   requiredHoldSeconds: 1,
   timeLimitSeconds: 60,
   tolerance: 0.1,
@@ -84,6 +85,7 @@ export const STORAGE_KEYS = {
 export const UI_IDS = {
   levelSelect: 'level-select',
   generateLevelButton: 'generate-level-button',
+  musicToggleButton: 'music-toggle-button',
   headerGravityText: 'header-gravity-text',
   elementType: 'element-type',
   elementNote: 'element-note',
@@ -93,6 +95,7 @@ export const UI_IDS = {
   shapeX: 'shape-x',
   shapeY: 'shape-y',
   shapeSize: 'shape-size',
+  shapeWidth: 'shape-width',
   shapeMass: 'shape-mass',
   shapeAngle: 'shape-angle',
   shapeFixedX: 'shape-fixed-x',

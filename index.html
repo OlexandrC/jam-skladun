@@ -23,6 +23,16 @@
           <button id="generate-level-button" class="generate-level-button" type="button">
             Generate
           </button>
+          <button
+            id="music-toggle-button"
+            class="music-toggle-button is-muted"
+            type="button"
+            aria-label="Mute music"
+            aria-pressed="false"
+            disabled
+          >
+            Mute music
+          </button>
           <p id="header-gravity-text" class="header-gravity-text">Gravity: X 0, Y 9</p>
           <div class="game-info">
             <p id="score-text">Score: 0</p>
@@ -110,7 +120,7 @@
                   <circle cx="20" cy="20" r="11"></circle>
                 </svg>
               </button>
-              <button class="shape-type-button" type="button" data-shape-type-button="rectangle" aria-label="Square">
+              <button class="shape-type-button" type="button" data-shape-type-button="rectangle" aria-label="Rectangle">
                 <svg viewBox="0 0 40 40" aria-hidden="true">
                   <rect x="10" y="10" width="20" height="20"></rect>
                 </svg>
@@ -130,7 +140,7 @@
             <select id="shape-type" hidden aria-hidden="true" tabindex="-1">
               <option value=""></option>
               <option value="circle">Circle</option>
-              <option value="rectangle">Square</option>
+              <option value="rectangle">Rectangle</option>
               <option value="triangle">Triangle</option>
             </select>
           </section>
@@ -146,11 +156,18 @@
             </label>
           </section>
 
-          <section class="panel-section three-columns" data-element-settings="shape" data-shape-params hidden>
+          <section class="panel-section two-columns" data-element-settings="shape" data-shape-params hidden>
             <label>
               Size
               <input id="shape-size" type="number" min="5" max="500" step="1" value="40" />
             </label>
+            <label data-rectangle-params hidden>
+              Width
+              <input id="shape-width" type="number" min="1" max="500" step="1" value="40" />
+            </label>
+          </section>
+
+          <section class="panel-section two-columns" data-element-settings="shape" data-shape-params hidden>
             <label>
               Mass
               <input id="shape-mass" type="number" min="1" max="1000" step="1" value="10" />

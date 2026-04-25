@@ -4,8 +4,8 @@ export function makePlayerShape(values) {
   if (values.shape === 'rectangle') {
     return {
       ...baseShape,
-      width: values.size,
-      height: values.size,
+      width: getRectangleWidth(values),
+      height: getRectangleHeight(values),
     };
   }
 
@@ -17,7 +17,7 @@ export function makePlayerShape(values) {
 
 export function getShapeSize(shape) {
   if (shape.shape === 'rectangle') {
-    return shape.width;
+    return shape.height;
   }
 
   return shape.radius;
@@ -41,4 +41,12 @@ function getBaseShape(values) {
     fixedY: Boolean(values.fixedY),
     fixedAngle: Boolean(values.fixedAngle),
   };
+}
+
+function getRectangleWidth(values) {
+  return values.width ?? values.size;
+}
+
+function getRectangleHeight(values) {
+  return values.height ?? values.size;
 }

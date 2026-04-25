@@ -38,6 +38,7 @@ export class GameSceneUiController {
     this.shapeTypeButtons = document.querySelectorAll('[data-shape-type-button]');
     this.clearShapeTypeButton = document.querySelector('[data-shape-type-clear]');
     this.shapeParamSections = document.querySelectorAll('[data-shape-params]');
+    this.rectangleParamSections = document.querySelectorAll('[data-rectangle-params]');
     this.jointParamSections = document.querySelectorAll('[data-joint-params]');
     this.forceParamSections = document.querySelectorAll('[data-force-params]');
     this.draftActionsSection = document.querySelector('[data-draft-actions]');
@@ -50,6 +51,7 @@ export class GameSceneUiController {
     this.ui.generateLevelButton.addEventListener('click', () => {
       this.scene.generateSelectedLevel();
     });
+    this.ui.musicToggleButton.addEventListener('click', () => this.scene.toggleMusicPlayback());
     this.ui.elementType.addEventListener('change', () => this.scene.selectElementType());
     this.bindPanelTabEvents();
     this.bindElementTypeTabEvents();
@@ -140,6 +142,7 @@ export class GameSceneUiController {
       this.ui.shapeX,
       this.ui.shapeY,
       this.ui.shapeSize,
+      this.ui.shapeWidth,
       this.ui.shapeMass,
       this.ui.shapeAngle,
       this.ui.shapeFixedX,
@@ -189,6 +192,7 @@ export class GameSceneUiController {
       section.hidden = section.dataset.elementSettings !== this.ui.elementType.value;
     });
     this.updateShapeParamsVisibility();
+    this.updateRectangleParamsVisibility();
     this.updateJointParamsVisibility();
     this.updateForceParamsVisibility();
     this.updateDraftActionsVisibility();
@@ -204,6 +208,14 @@ export class GameSceneUiController {
 
     this.shapeParamSections.forEach((section) => {
       section.hidden = !areShapeParamsVisible;
+    });
+  }
+
+  updateRectangleParamsVisibility() {
+    const isRectangle = this.isShapeElementType() && this.ui.shapeType.value === 'rectangle';
+
+    this.rectangleParamSections.forEach((section) => {
+      section.hidden = !isRectangle;
     });
   }
 
@@ -374,6 +386,7 @@ export class GameSceneUiController {
 
     this.ui.levelSelect.disabled = this.scene.isRunning;
     this.ui.generateLevelButton.disabled = this.scene.isRunning;
+    this.ui.musicToggleButton.disabled = !this.scene.hasSelectedMusicTrack();
     this.ui.shapeSelect.disabled = isLocked;
     this.ui.elementType.disabled = isLocked || hasSelectedElement;
     this.elementTypeTabs.forEach((tab) => {
@@ -389,8 +402,20 @@ export class GameSceneUiController {
     this.ui.deleteShape.disabled = isLocked || !hasSelectedElement;
     this.ui.playButton.disabled = this.scene.isRunning || this.scene.hasPendingLevel();
     this.ui.stopButton.disabled = !this.scene.canStopRun();
+    this.updateMusicToggleButton();
     this.updateShapeTypeButtonStates(isLocked, hasSelectedElement);
     this.updateElementListButtons();
+  }
+
+  updateMusicToggleButton() {
+    const hasTrack = this.scene.hasSelectedMusicTrack();
+    const isMuted = !hasTrack || this.scene.isMusicMuted;
+    const buttonText = hasTrack && this.scene.isMusicMuted ? 'Unmute music' : 'Mute music';
+
+    this.ui.musicToggleButton.textContent = buttonText;
+    this.ui.musicToggleButton.classList.toggle('is-muted', isMuted);
+    this.ui.musicToggleButton.setAttribute('aria-pressed', String(hasTrack && !this.scene.isMusicMuted));
+    this.ui.musicToggleButton.setAttribute('aria-label', buttonText);
   }
 
   updateShapeTypeButtonStates(isLocked, hasSelectedElement) {

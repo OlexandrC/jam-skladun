@@ -125,7 +125,36 @@ p {
   min-height: 34px;
   margin-left: 8px;
   padding: 0 12px;
+  border-color: #2ba765;
+  color: #102418;
+  background: var(--play);
+}
+
+.generate-level-button:hover:not(:disabled) {
+  background: #62d995;
+}
+
+.music-toggle-button {
+  min-height: 34px;
+  margin-left: 8px;
+  padding: 0 12px;
+  border-color: #2ba765;
+  color: #102418;
+  background: var(--play);
+}
+
+.music-toggle-button:hover:not(:disabled) {
+  background: #62d995;
+}
+
+.music-toggle-button.is-muted {
+  border-color: var(--panel-line);
   color: var(--muted);
+  background: var(--button);
+}
+
+.music-toggle-button.is-muted:hover:not(:disabled) {
+  background: var(--button-hover);
 }
 
 .header-gravity-text {
