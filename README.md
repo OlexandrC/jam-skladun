@@ -8,6 +8,9 @@ The player solves each level by placing their own elements into the scene and th
 
 The intended gameplay is about building simple physical solutions such as push systems, supports, bridges, and small mechanisms by combining shapes, joints, forces, and gravity changes.
 
+itch.io: https://olexandrch.itch.io/jam-skladun  
+youtube gameplay: https://youtu.be/Y9LLYipupCA  
+
 ## Technology Stack
 
 - JavaScript (ES modules)
