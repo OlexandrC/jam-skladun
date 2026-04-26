@@ -43,10 +43,37 @@ export const DEFAULTS = {
   tolerance: 0.1,
 };
 
+export const SHAPE_LIMITS = {
+  minSize: 5,
+  maxSize: 500,
+  minWidth: 1,
+  maxWidth: 500,
+  maxRectangleDimension: 900,
+};
+
+export function getShapeSizeMax(shapeType) {
+  if (shapeType === 'rectangle') {
+    return SHAPE_LIMITS.maxRectangleDimension;
+  }
+
+  return SHAPE_LIMITS.maxSize;
+}
+
+export function getShapeWidthMax(shapeType) {
+  if (shapeType === 'rectangle') {
+    return SHAPE_LIMITS.maxRectangleDimension;
+  }
+
+  return SHAPE_LIMITS.maxWidth;
+}
+
 export const PHYSICS = {
   fixedStepMs: 1000 / 120,
   maxSubSteps: 12,
   maxFrameDeltaMs: 100,
+  matterBaseStepMs: 1000 / 60,
+  maxMicroStepsPerFixedStep: 16,
+  maxBodyTravelRatio: 0.12,
   gravityScale: 0.001,
   gravityCoefficient: 0.5,
   massCoefficient: 0.5,
@@ -54,9 +81,9 @@ export const PHYSICS = {
   frictionAir: 0.01,
   forceScale: 0.00005,
   restitution: 0.12,
-  positionIterations: 16,
-  velocityIterations: 12,
-  constraintIterations: 6,
+  positionIterations: 20,
+  velocityIterations: 14,
+  constraintIterations: 8,
   sleepThreshold: 120,
   bodySlop: 0.01,
   lockConstraintStiffness: 0.98,

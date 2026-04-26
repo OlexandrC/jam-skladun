@@ -280,6 +280,15 @@ p {
   color: var(--muted);
 }
 
+.panel-section[data-element-settings] {
+  gap: 0px;
+  margin-bottom: 6px;
+}
+
+.panel-section[data-element-settings] label {
+  gap: 4px;
+}
+
 .panel-label {
   color: var(--muted);
 }

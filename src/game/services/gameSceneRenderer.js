@@ -4,10 +4,16 @@ import { getShapeFromBodyRecord, isTimeWindowActive } from './runPhysics.js';
 import { drawShape } from './shapeDrawer.js';
 
 const MAX_GRAVITY_MAGNITUDE = Math.hypot(20, 20);
+const SHAPE_LABEL_FONT_SIZE = 13;
+const SHAPE_INDICATOR_FONT_SIZE = 9;
 const FIXED_INDICATOR_RADIUS = 9;
 const FIXED_INDICATOR_GAP = 21;
-const FIXED_INDICATOR_OFFSET = 14;
+const FIXED_INDICATOR_LABEL_GAP = 8;
 const FIXED_INDICATOR_EDGE_PADDING = 12;
+const WEIGHT_INDICATOR_TEXT = 'M';
+const WEIGHT_INDICATOR_MIN_MASS = 1;
+const WEIGHT_INDICATOR_MAX_MASS = 100;
+const WEIGHT_INDICATOR_MIN_COLOR = 0xffffff;
 
 export class GameSceneRenderer {
   constructor(scene) {
@@ -155,8 +161,8 @@ export class GameSceneRenderer {
       radiusLineColor: COLORS.background,
       radiusLineAlpha: 0.92,
     });
-    this.addShapeLabel(this.scene.draftShape, color);
-    this.drawFixedIndicators(this.scene.draftShape, color);
+    const label = this.addShapeLabel(this.scene.draftShape, color);
+    this.drawShapeIndicators(this.scene.draftShape, color, label);
   }
 
   drawJointElement(joint, isDraft, shouldLabel, isSelected = false) {
@@ -312,6 +318,7 @@ export class GameSceneRenderer {
 
   drawPlayerShape(shape, color, shouldLabel, isSelected = false) {
     const lineColor = isSelected ? COLORS.selected : color;
+    let label = null;
 
     drawShape(this.graphics, shape, {
       fillColor: color,
@@ -323,23 +330,24 @@ export class GameSceneRenderer {
     });
 
     if (shouldLabel) {
-      this.addShapeLabel(shape, color);
+      label = this.addShapeLabel(shape, color);
     }
 
-    this.drawFixedIndicators(shape, lineColor);
+    this.drawShapeIndicators(shape, lineColor, label);
   }
 
   addShapeLabel(shape, color) {
     const label = this.scene.add.text(shape.x, shape.y, shape.name ?? shape.id, {
       color: COLORS.text,
       fontFamily: 'system-ui, sans-serif',
-      fontSize: '13px',
+      fontSize: `${SHAPE_LABEL_FONT_SIZE}px`,
       stroke: Phaser.Display.Color.IntegerToColor(color).rgba,
       strokeThickness: 2,
     });
 
     label.setOrigin(0.5);
     this.labels.push(label);
+    return label;
   }
 
   clearLabels() {
@@ -347,110 +355,158 @@ export class GameSceneRenderer {
     this.labels = [];
   }
 
-  drawFixedIndicators(shape, color) {
-    if (!this.shouldDrawFixedIndicators(shape)) {
+  drawShapeIndicators(shape, color, label = null) {
+    const indicators = this.getShapeIndicators(shape, color, label);
+
+    if (indicators.length === 0) {
       return;
     }
 
-    const markers = this.getFixedMarkers(shape);
-    const startPoint = this.getFixedIndicatorStartPoint(shape, markers.length);
+    const centers = this.getShapeIndicatorCenters(shape, indicators.length, label);
 
-    markers.forEach((marker, index) => {
-      const center = { x: startPoint.x, y: startPoint.y + index * FIXED_INDICATOR_GAP };
-      this.drawFixedIndicatorBadge(center, color);
-      this.drawFixedIndicatorIcon(center, marker);
+    indicators.forEach((indicator, index) => {
+      const center = centers[index];
+      this.drawShapeIndicatorBadge(center, indicator.color);
+      this.drawShapeIndicatorContent(center, indicator);
     });
   }
 
-  shouldDrawFixedIndicators(shape) {
-    return !this.isRunViewVisible()
-      && Boolean(shape.fixedX || shape.fixedY || shape.fixedAngle);
-  }
+  getShapeIndicators(shape, color, label) {
+    const indicators = [];
 
-  getFixedMarkers(shape) {
-    const markers = [];
+    if (this.shouldDrawWeightIndicator(shape, label)) {
+      indicators.push(this.getWeightIndicator(shape));
+    }
+
+    if (!this.shouldDrawFixedIndicators()) {
+      return indicators;
+    }
 
     if (shape.fixedX) {
-      markers.push('x');
+      indicators.push({ kind: 'x', color });
     }
 
     if (shape.fixedY) {
-      markers.push('y');
+      indicators.push({ kind: 'y', color });
     }
 
     if (shape.fixedAngle) {
-      markers.push('angle');
+      indicators.push({ kind: 'angle', color });
     }
 
-    return markers;
+    return indicators;
   }
 
-  getFixedIndicatorStartPoint(shape, markerCount) {
-    const extents = this.getShapeIndicatorExtents(shape);
-    const maxStartY = GAME_AREA.height
-      - FIXED_INDICATOR_EDGE_PADDING
-      - (markerCount - 1) * FIXED_INDICATOR_GAP;
+  shouldDrawFixedIndicators() {
+    return !this.isRunViewVisible();
+  }
 
+  shouldDrawWeightIndicator(shape, label) {
+    return !this.isRunViewVisible()
+      && Boolean(label)
+      && Number.isFinite(shape.mass);
+  }
+
+  getWeightIndicator(shape) {
     return {
-      x: Phaser.Math.Clamp(
-        shape.x + extents.x + FIXED_INDICATOR_OFFSET,
-        FIXED_INDICATOR_EDGE_PADDING,
-        GAME_AREA.width - FIXED_INDICATOR_EDGE_PADDING,
-      ),
-      y: Phaser.Math.Clamp(
-        shape.y - extents.y + FIXED_INDICATOR_OFFSET,
-        FIXED_INDICATOR_EDGE_PADDING,
-        maxStartY,
-      ),
+      kind: 'mass',
+      color: this.getWeightIndicatorColor(shape.mass),
     };
   }
 
-  getShapeIndicatorExtents(shape) {
-    if (shape.shape === 'circle') {
-      return { x: shape.radius, y: shape.radius };
-    }
+  getWeightIndicatorColor(mass) {
+    const progress = Phaser.Math.Clamp(
+      (mass - WEIGHT_INDICATOR_MIN_MASS) / (WEIGHT_INDICATOR_MAX_MASS - WEIGHT_INDICATOR_MIN_MASS),
+      0,
+      1,
+    );
+    const minColor = Phaser.Display.Color.IntegerToColor(WEIGHT_INDICATOR_MIN_COLOR);
+    const maxColor = Phaser.Display.Color.IntegerToColor(COLORS.invalid);
 
-    if (shape.shape === 'rectangle') {
-      return this.getRectangleExtents(shape);
-    }
-
-    return { x: shape.radius, y: shape.radius };
+    return Phaser.Display.Color.GetColor(
+      Math.round(Phaser.Math.Linear(minColor.red, maxColor.red, progress)),
+      Math.round(Phaser.Math.Linear(minColor.green, maxColor.green, progress)),
+      Math.round(Phaser.Math.Linear(minColor.blue, maxColor.blue, progress)),
+    );
   }
 
-  getRectangleExtents(shape) {
-    const halfWidth = shape.width / 2;
-    const halfHeight = shape.height / 2;
-    const angle = shape.angle ?? 0;
-    const cos = Math.abs(Math.cos(angle));
-    const sin = Math.abs(Math.sin(angle));
+  getShapeIndicatorCenters(shape, markerCount, label) {
+    const startX = this.getShapeIndicatorStartX(shape.x, markerCount);
+    const centerY = this.getShapeIndicatorCenterY(shape.y, label);
 
-    return {
-      x: cos * halfWidth + sin * halfHeight,
-      y: sin * halfWidth + cos * halfHeight,
-    };
+    return Array.from({ length: markerCount }, (_value, index) => {
+      return {
+        x: startX + index * FIXED_INDICATOR_GAP,
+        y: centerY,
+      };
+    });
   }
 
-  drawFixedIndicatorBadge(center, color) {
+  getShapeIndicatorStartX(centerX, markerCount) {
+    const rowWidth = (markerCount - 1) * FIXED_INDICATOR_GAP;
+
+    return Phaser.Math.Clamp(
+      centerX - rowWidth / 2,
+      FIXED_INDICATOR_EDGE_PADDING,
+      GAME_AREA.width - FIXED_INDICATOR_EDGE_PADDING - rowWidth,
+    );
+  }
+
+  getShapeIndicatorCenterY(centerY, label) {
+    const labelHeight = label?.height ?? SHAPE_LABEL_FONT_SIZE;
+    const topY = centerY - labelHeight / 2 - FIXED_INDICATOR_LABEL_GAP - FIXED_INDICATOR_RADIUS;
+
+    if (topY >= FIXED_INDICATOR_EDGE_PADDING) {
+      return topY;
+    }
+
+    return Phaser.Math.Clamp(
+      centerY + labelHeight / 2 + FIXED_INDICATOR_LABEL_GAP + FIXED_INDICATOR_RADIUS,
+      FIXED_INDICATOR_EDGE_PADDING,
+      GAME_AREA.height - FIXED_INDICATOR_EDGE_PADDING,
+    );
+  }
+
+  drawShapeIndicatorBadge(center, color) {
     this.graphics.fillStyle(COLORS.background, 0.96);
     this.graphics.fillCircle(center.x, center.y, FIXED_INDICATOR_RADIUS);
     this.graphics.lineStyle(2, color, 0.95);
     this.graphics.strokeCircle(center.x, center.y, FIXED_INDICATOR_RADIUS);
   }
 
-  drawFixedIndicatorIcon(center, marker) {
+  drawShapeIndicatorContent(center, indicator) {
+    if (indicator.kind === 'mass') {
+      this.addIndicatorLabel(center, WEIGHT_INDICATOR_TEXT, indicator.color);
+      return;
+    }
+
     this.graphics.lineStyle(2, COLORS.fixedIndicatorIcon, 1);
 
-    if (marker === 'x') {
+    if (indicator.kind === 'x') {
       this.drawHorizontalAxisIcon(center);
       return;
     }
 
-    if (marker === 'y') {
+    if (indicator.kind === 'y') {
       this.drawVerticalAxisIcon(center);
       return;
     }
 
     this.drawRotationIcon(center);
+  }
+
+  addIndicatorLabel(center, text, color) {
+    const label = this.scene.add.text(center.x, center.y, text, {
+      color: Phaser.Display.Color.IntegerToColor(color).rgba,
+      fontFamily: 'system-ui, sans-serif',
+      fontSize: `${SHAPE_INDICATOR_FONT_SIZE}px`,
+      fontStyle: '700',
+      stroke: '#1B2130',
+      strokeThickness: 1,
+    });
+
+    label.setOrigin(0.5);
+    this.labels.push(label);
   }
 
   drawHorizontalAxisIcon(center) {

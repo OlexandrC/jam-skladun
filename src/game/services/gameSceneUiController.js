@@ -1,4 +1,9 @@
-import { ELEMENT_TYPES, UI_IDS } from '../constants.js';
+import {
+  ELEMENT_TYPES,
+  getShapeSizeMax,
+  getShapeWidthMax,
+  UI_IDS,
+} from '../constants.js';
 import { getElementValue } from './elementCollection.js';
 import { makeSelectOption, renderElementList } from './elementDom.js';
 import {
@@ -191,6 +196,7 @@ export class GameSceneUiController {
     this.elementSettings.forEach((section) => {
       section.hidden = section.dataset.elementSettings !== this.ui.elementType.value;
     });
+    this.updateShapeInputLimits();
     this.updateShapeParamsVisibility();
     this.updateRectangleParamsVisibility();
     this.updateJointParamsVisibility();
@@ -209,6 +215,29 @@ export class GameSceneUiController {
     this.shapeParamSections.forEach((section) => {
       section.hidden = !areShapeParamsVisible;
     });
+  }
+
+  updateShapeInputLimits() {
+    const shapeType = this.ui.shapeType.value;
+
+    this.setInputMax(this.ui.shapeSize, getShapeSizeMax(shapeType));
+    this.setInputMax(this.ui.shapeWidth, getShapeWidthMax(shapeType));
+  }
+
+  setInputMax(input, max) {
+    input.max = String(max);
+
+    if (input.value === '') {
+      return;
+    }
+
+    const value = Number(input.value);
+
+    if (!Number.isFinite(value) || value <= max) {
+      return;
+    }
+
+    input.value = String(max);
   }
 
   updateRectangleParamsVisibility() {
@@ -383,10 +412,11 @@ export class GameSceneUiController {
   updateButtonStates() {
     const hasSelectedElement = Boolean(this.scene.selectedElementValue);
     const isLocked = this.scene.isSceneLocked();
+    const isStartCardVisible = this.scene.isStartCardVisible;
 
-    this.ui.levelSelect.disabled = this.scene.isRunning;
-    this.ui.generateLevelButton.disabled = this.scene.isRunning;
-    this.ui.musicToggleButton.disabled = !this.scene.hasSelectedMusicTrack();
+    this.ui.levelSelect.disabled = this.scene.isRunning || isStartCardVisible;
+    this.ui.generateLevelButton.disabled = this.scene.isRunning || isStartCardVisible;
+    this.ui.musicToggleButton.disabled = isStartCardVisible || !this.scene.hasSelectedMusicTrack();
     this.ui.shapeSelect.disabled = isLocked;
     this.ui.elementType.disabled = isLocked || hasSelectedElement;
     this.elementTypeTabs.forEach((tab) => {
@@ -400,8 +430,9 @@ export class GameSceneUiController {
     this.ui.updateShape.disabled = isLocked || !hasSelectedElement || !this.scene.isDraftValid;
     this.ui.cancelShape.disabled = isLocked || !hasSelectedElement;
     this.ui.deleteShape.disabled = isLocked || !hasSelectedElement;
-    this.ui.playButton.disabled = this.scene.isRunning || this.scene.hasPendingLevel();
+    this.ui.playButton.disabled = isStartCardVisible || this.scene.isRunning || this.scene.hasPendingLevel();
     this.ui.stopButton.disabled = !this.scene.canStopRun();
+    this.ui.resetButton.disabled = isStartCardVisible;
     this.updateMusicToggleButton();
     this.updateShapeTypeButtonStates(isLocked, hasSelectedElement);
     this.updateElementListButtons();

@@ -9,6 +9,13 @@ export function makePlayerShape(values) {
     };
   }
 
+  if (values.shape === 'circle') {
+    return {
+      ...baseShape,
+      radius: getCircleRadiusFromDiameter(values.size),
+    };
+  }
+
   return {
     ...baseShape,
     radius: values.size,
@@ -18,6 +25,10 @@ export function makePlayerShape(values) {
 export function getShapeSize(shape) {
   if (shape.shape === 'rectangle') {
     return shape.height;
+  }
+
+  if (shape.shape === 'circle') {
+    return getCircleDiameterFromRadius(shape.radius);
   }
 
   return shape.radius;
@@ -49,4 +60,12 @@ function getRectangleWidth(values) {
 
 function getRectangleHeight(values) {
   return values.height ?? values.size;
+}
+
+function getCircleRadiusFromDiameter(diameter) {
+  return diameter / 2;
+}
+
+function getCircleDiameterFromRadius(radius) {
+  return radius * 2;
 }

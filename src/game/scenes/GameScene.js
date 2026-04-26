@@ -32,6 +32,7 @@ import { areAllBaseShapesPlaced } from '../services/goalMatcher.js';
 import { PlayerElementStore } from '../services/playerElementStore.js';
 import { RunSession } from '../services/runSession.js';
 import { updateScoreStats } from '../services/scoreStorage.js';
+import { StartScreenCard } from '../services/startScreenCard.js';
 import { WinFactCard } from '../services/winFactCard.js';
 import { isPointInsideShape, isShapeColliding } from '../services/shapeGeometry.js';
 
@@ -41,6 +42,8 @@ const MIN_COLLISION_SOUND_SPEED = 0.45;
 const MAX_COLLISION_SOUND_SPEED = 6;
 const MIN_COLLISION_SOUND_VOLUME = 0.08;
 const MAX_COLLISION_SOUND_VOLUME = 0.75;
+const DEFAULT_MUSIC_VOLUME = 1;
+const MUSIC_FADE_IN_MS = 2000;
 const WIN_SOUND_KEY = 'win-sound';
 const WIN_SOUND_URL = new URL('../../assets/Win sound.ogg', import.meta.url).href;
 
@@ -74,6 +77,7 @@ export class GameScene extends Phaser.Scene {
     this.bindPointerEvents();
     this.refreshElementSelect();
     this.updateDraftFromForm();
+    this.showStartCard();
   }
 
   update(_time, delta) {
@@ -89,12 +93,14 @@ export class GameScene extends Phaser.Scene {
     this.currentFactCard = null;
     this.isRunning = false;
     this.isWinSnapshotVisible = false;
+    this.isStartCardVisible = true;
     this.isCurrentLevelFactCardAvailable = false;
     this.musicTracks = getMusicTracks();
     this.collisionSoundKeys = getCollisionSoundAssets().map(({ key }) => key);
     this.currentCollisionSoundKey = getRandomCollisionSoundKey(this.collisionSoundKeys);
     this.currentMusicTrack = null;
     this.currentMusicAudio = null;
+    this.currentMusicFadeTween = null;
     this.isMusicMuted = false;
     this.lastCollisionSoundTime = -Infinity;
     this.playerElementStore = new PlayerElementStore();
@@ -121,6 +127,7 @@ export class GameScene extends Phaser.Scene {
     this.renderer = new GameSceneRenderer(this);
     this.countdownText = this.makeGoalCountdownText();
     this.confettiLauncher = new ConfettiLauncher(this);
+    this.startScreenCard = new StartScreenCard(this, () => this.startFromStartCard());
     this.winFactCard = new WinFactCard(this, () => this.clearWinFactCard());
   }
 
@@ -601,6 +608,11 @@ export class GameScene extends Phaser.Scene {
     this.resetLevel();
   }
 
+  startFromStartCard() {
+    this.generateSelectedLevel();
+    this.hideStartCard();
+  }
+
   toggleMusicPlayback() {
     if (!this.hasSelectedMusicTrack()) {
       return;
@@ -631,18 +643,69 @@ export class GameScene extends Phaser.Scene {
 
     const musicAudio = makeLoopedMusicAudio(this.currentMusicTrack.url);
 
+    musicAudio.volume = 0;
     this.currentMusicAudio = musicAudio;
-    musicAudio.play().catch(() => {
-      if (this.currentMusicAudio !== musicAudio) {
-        return;
-      }
+    this.playCurrentMusic(musicAudio);
+  }
 
-      this.stopCurrentMusic();
-      this.updatePanel();
+  playCurrentMusic(musicAudio) {
+    const playPromise = musicAudio.play();
+
+    if (!playPromise?.then) {
+      this.startCurrentMusicFadeIn(musicAudio);
+      return;
+    }
+
+    playPromise
+      .then(() => this.startCurrentMusicFadeIn(musicAudio))
+      .catch(() => this.handleCurrentMusicPlaybackError(musicAudio));
+  }
+
+  startCurrentMusicFadeIn(musicAudio) {
+    if (this.currentMusicAudio !== musicAudio) {
+      return;
+    }
+
+    this.stopCurrentMusicFadeTween();
+    this.currentMusicFadeTween = this.tweens.addCounter({
+      from: 0,
+      to: DEFAULT_MUSIC_VOLUME,
+      duration: MUSIC_FADE_IN_MS,
+      ease: 'Linear',
+      onUpdate: (tween) => {
+        musicAudio.volume = tween.getValue();
+      },
+      onComplete: () => {
+        if (this.currentMusicAudio === musicAudio) {
+          musicAudio.volume = DEFAULT_MUSIC_VOLUME;
+        }
+
+        this.currentMusicFadeTween = null;
+      },
     });
   }
 
+  handleCurrentMusicPlaybackError(musicAudio) {
+    if (this.currentMusicAudio !== musicAudio) {
+      return;
+    }
+
+    this.stopCurrentMusic();
+    this.updatePanel();
+  }
+
+  stopCurrentMusicFadeTween() {
+    if (!this.currentMusicFadeTween) {
+      return;
+    }
+
+    this.currentMusicFadeTween.remove();
+    this.currentMusicFadeTween = null;
+  }
+
   stopCurrentMusic() {
+    this.stopCurrentMusicFadeTween();
+
     if (!this.currentMusicAudio) {
       return;
     }
@@ -1015,7 +1078,23 @@ export class GameScene extends Phaser.Scene {
   }
 
   isSceneLocked() {
-    return this.isRunning || this.isWinSnapshotVisible;
+    return this.isRunning || this.isWinSnapshotVisible || this.isStartCardVisible;
+  }
+
+  showStartCard() {
+    this.isStartCardVisible = true;
+    this.startScreenCard.show();
+    this.updatePanel();
+  }
+
+  hideStartCard() {
+    if (!this.isStartCardVisible) {
+      return;
+    }
+
+    this.isStartCardVisible = false;
+    this.startScreenCard.hide();
+    this.updatePanel();
   }
 
   get playerShapes() {

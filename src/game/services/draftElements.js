@@ -1,4 +1,11 @@
-import { DEFAULTS, ELEMENT_TYPES, WORLD_LIMIT } from '../constants.js';
+import {
+  DEFAULTS,
+  ELEMENT_TYPES,
+  getShapeSizeMax,
+  getShapeWidthMax,
+  SHAPE_LIMITS,
+  WORLD_LIMIT,
+} from '../constants.js';
 import { getNumberInput, getOptionalNumberInput } from './formInput.js';
 import { getBaseAngle, getShapeSize, makePlayerShape } from './shapeFactory.js';
 import { isShapeColliding } from './shapeGeometry.js';
@@ -67,15 +74,27 @@ export function setFormFromElement(ui, element) {
 }
 
 function makeDraftShape(ui, elementCounters, selectedElement) {
+  const shapeType = ui.shapeType.value;
+
   return {
     kind: ELEMENT_TYPES.shape,
     ...makePlayerShape({
       name: getDraftName(ELEMENT_TYPES.shape, ui, elementCounters, selectedElement),
-      shape: ui.shapeType.value,
+      shape: shapeType,
       x: getNumberInput(ui.shapeX, 0, -WORLD_LIMIT, WORLD_LIMIT),
       y: getNumberInput(ui.shapeY, 0, -WORLD_LIMIT, WORLD_LIMIT),
-      size: getNumberInput(ui.shapeSize, DEFAULTS.shapeSize, 5, 500),
-      width: getNumberInput(ui.shapeWidth, DEFAULTS.shapeWidth, 1, 500),
+      size: getNumberInput(
+        ui.shapeSize,
+        DEFAULTS.shapeSize,
+        SHAPE_LIMITS.minSize,
+        getShapeSizeMax(shapeType),
+      ),
+      width: getNumberInput(
+        ui.shapeWidth,
+        DEFAULTS.shapeWidth,
+        SHAPE_LIMITS.minWidth,
+        getShapeWidthMax(shapeType),
+      ),
       mass: getNumberInput(ui.shapeMass, DEFAULTS.mass, 1, 1000),
       angle: degreesToRadians(getNumberInput(ui.shapeAngle, 0, 0, 360)),
       fixedX: ui.shapeFixedX.checked,
